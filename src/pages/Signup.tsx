@@ -27,7 +27,8 @@ export default function Signup() {
 
   const onSubmit = async ({ email, password }: FormData) => {
     setLoading(true);
-    const { error } = await supabase.auth.signUp({ email, password });
+    const redirectTo = `${(import.meta.env.VITE_APP_URL as string | undefined)?.replace(/\/$/, '') ?? window.location.origin}/login`;
+    const { error } = await supabase.auth.signUp({ email, password, options: { emailRedirectTo: redirectTo } });
     setLoading(false);
     if (error) { toast.error(error.message); return; }
     toast.success('Account created — check your email to confirm.');
