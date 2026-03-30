@@ -18,8 +18,15 @@ export default function PublicSurvey() {
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [step, setStep] = useState(0); // 0 = region, then one question per step
+  const [transitioning, setTransitioning] = useState(false);
 
   const { register, handleSubmit, watch, setValue } = useForm<Record<string, unknown>>({});
+
+  const goNext = () => {
+    setTransitioning(true);
+    setStep((s) => s + 1);
+    setTimeout(() => setTransitioning(false), 150);
+  };
 
   useEffect(() => {
     (async () => {
@@ -47,7 +54,7 @@ export default function PublicSurvey() {
   const progress = Math.round((step / totalSteps) * 100);
 
   const onSubmit = async (data: Record<string, unknown>) => {
-    if (!project || step !== questions.length) return;
+    if (!project || transitioning) return;
     setSubmitting(true);
 
     const answers: Record<string, unknown> = {};
@@ -143,7 +150,7 @@ export default function PublicSurvey() {
                   {...register('_region')}
                 />
                 <div className="flex justify-end mt-2">
-                  <Button variant="primary" type="button" onClick={() => setStep(1)}>
+                  <Button variant="primary" type="button" onClick={goNext}>
                     Next →
                   </Button>
                 </div>
@@ -164,11 +171,11 @@ export default function PublicSurvey() {
                     ← Back
                   </Button>
                   {step < questions.length ? (
-                    <Button variant="primary" type="button" onClick={() => setStep((s) => s + 1)}>
+                    <Button variant="primary" type="button" onClick={goNext}>
                       Next →
                     </Button>
                   ) : (
-                    <Button variant="primary" type="submit" loading={submitting}>
+                    <Button variant="primary" type="submit" loading={submitting} disabled={transitioning || submitting}>
                       Submit
                     </Button>
                   )}
