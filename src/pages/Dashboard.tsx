@@ -37,9 +37,9 @@ export default function Dashboard() {
   const recentActivity = [
     ...interviews.slice(0, 5).map((i) => ({
       type: 'interview' as const,
-      label: `Interview: ${i.pseudonym}`,
+      label: `Interview: ${i.participant}`,
       sub: REGIONS.find((r) => r.code === i.region)?.label ?? i.region,
-      ts: i.conducted_at,
+      ts: i.interviewed_at,
     })),
     ...surveys.slice(0, 5).map((s) => ({
       type: 'survey' as const,

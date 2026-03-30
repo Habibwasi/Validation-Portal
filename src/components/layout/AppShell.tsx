@@ -1,7 +1,8 @@
-import { NavLink, useParams, useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { NavLink, useParams, useNavigate, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, MessageSquare, ClipboardList, BarChart2,
-  ChevronLeft, LogOut, FolderOpen, Settings
+  ChevronLeft, ChevronDown, LogOut, FolderOpen, Settings
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useProjectStore } from '@/store/projectStore';
@@ -38,6 +39,25 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { id } = useParams<{ id: string }>();
   const { current } = useProjectStore();
   const navigate = useNavigate();
+  const location = useLocation();
+  const [allProjects, setAllProjects] = useState<{ id: string; name: string }[]>([]);
+
+  useEffect(() => {
+    if (!id) return;
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return;
+      supabase
+        .from('projects')
+        .select('id, name')
+        .eq('user_id', user.id)
+        .eq('archived', false)
+        .order('created_at', { ascending: false })
+        .then(({ data }) => setAllProjects(data ?? []));
+    });
+  }, [id]);
+
+  // Keep sub-path (e.g. '/interviews') so switching projects lands on the same page
+  const subPath = id ? location.pathname.slice(`/p/${id}`.length) : '';
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -57,7 +77,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
 
         {/* Project context */}
-        {id && current && (
+        {id && (
           <div className="px-4 pt-4 pb-2">
             <button
               onClick={() => navigate('/')}
@@ -67,8 +87,24 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               All projects
             </button>
             <div className="bg-[var(--surface2)] border border-[var(--border)] rounded-xl px-3 py-2.5">
-              <div className="text-[10px] text-[var(--text3)] uppercase tracking-wider mb-0.5">Current project</div>
-              <div className="font-semibold text-[13px] truncate">{current.name}</div>
+              <div className="text-[10px] text-[var(--text3)] uppercase tracking-wider mb-1">Project</div>
+              <div className="relative">
+                <select
+                  value={id}
+                  onChange={(e) => { if (e.target.value !== id) navigate(`/p/${e.target.value}${subPath}`); }}
+                  className="w-full appearance-none bg-transparent text-[var(--text)] text-[13px] font-semibold cursor-pointer border-0 outline-none pr-4"
+                >
+                  {allProjects.length > 0
+                    ? allProjects.map((p) => (
+                        <option key={p.id} value={p.id}>{p.name}</option>
+                      ))
+                    : current && <option value={current.id}>{current.name}</option>
+                  }
+                </select>
+                {allProjects.length > 1 && (
+                  <ChevronDown size={11} className="absolute right-0 top-1/2 -translate-y-1/2 text-[var(--text3)] pointer-events-none" />
+                )}
+              </div>
             </div>
           </div>
         )}

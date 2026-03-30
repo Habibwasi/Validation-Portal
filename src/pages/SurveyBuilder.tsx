@@ -9,17 +9,19 @@ import {
   useSortable, arrayMove,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical, Plus, Trash2, Copy, ExternalLink } from 'lucide-react';
+import { GripVertical, Plus, Trash2, Copy, ExternalLink, ChevronDown, ChevronRight } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { supabase } from '@/lib/supabase';
 import { useProjectStore } from '@/store/projectStore';
-import type { Question, QuestionType } from '@/types';
+import type { Question, QuestionType, SurveyResponse } from '@/types';
+import { formatDate } from '@/lib/utils';
+import { REGIONS } from '@/types';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Card, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { Modal } from '@/components/ui/Modal';
+import { Modal, ConfirmModal } from '@/components/ui/Modal';
 import { Input, Textarea, Select } from '@/components/ui/Input';
 import { Badge } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -55,12 +57,14 @@ type QForm = z.infer<typeof qSchema>;
 
 export default function SurveyBuilder() {
   const { id } = useParams<{ id: string }>();
-  const { current, questions, refreshDeps } = useProjectStore();
+  const { current, questions, surveys, refreshDeps } = useProjectStore();
   const [localQs, setLocalQs] = useState<Question[]>([]);
   const [addOpen, setAddOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<Question | null>(null);
   const [saving, setSaving] = useState(false);
   const [reordering, setReordering] = useState(false);
+  const [delResponse, setDelResponse] = useState<SurveyResponse | null>(null);
+  const [deletingResponse, setDeletingResponse] = useState(false);
 
   useEffect(() => { setLocalQs(questions); }, [questions]);
 
@@ -207,6 +211,112 @@ export default function SurveyBuilder() {
         }}
         saving={saving}
       />
+
+      {/* ── Survey Responses ── */}
+      <div className="mt-10">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="font-bold text-[15px]">Survey Responses</h2>
+            <p className="text-[11px] text-[var(--text3)] mt-0.5">{surveys.length} response{surveys.length !== 1 ? 's' : ''} collected</p>
+          </div>
+        </div>
+
+        {surveys.length === 0 ? (
+          <div className="bg-[var(--surface)] border border-[rgba(255,255,255,.04)] rounded-xl px-5 py-8 text-center">
+            <div className="text-3xl mb-3">📭</div>
+            <p className="text-[13px] text-[var(--text2)]">No responses yet — share the survey link above to start collecting.</p>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {surveys.map((s) => (
+              <ResponseRow
+                key={s.id}
+                response={s}
+                questions={localQs}
+                onDelete={() => setDelResponse(s)}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+
+      <ConfirmModal
+        open={!!delResponse}
+        onClose={() => setDelResponse(null)}
+        onConfirm={async () => {
+          if (!delResponse) return;
+          setDeletingResponse(true);
+          await supabase.from('survey_responses').delete().eq('id', delResponse.id);
+          await refreshDeps(id!);
+          setDeletingResponse(false);
+          setDelResponse(null);
+          toast.success('Response deleted');
+        }}
+        title="Delete response"
+        message="Delete this survey response? This cannot be undone."
+        loading={deletingResponse}
+      />
+    </div>
+  );
+}
+
+// ── Response Row ─────────────────────────────────────────────────────────────
+
+function ResponseRow({ response: r, questions, onDelete }: {
+  response: SurveyResponse;
+  questions: Question[];
+  onDelete: () => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const region = REGIONS.find((reg) => reg.code === r.region);
+
+  return (
+    <div className="bg-[var(--surface)] border border-[rgba(255,255,255,.04)] rounded-xl px-4 py-3 group hover:border-[rgba(59,130,246,.2)] transition-all">
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          className="flex-1 flex items-center gap-3 text-left"
+          onClick={() => setExpanded((v) => !v)}
+        >
+          {expanded ? <ChevronDown size={13} className="text-[var(--text3)] flex-shrink-0" /> : <ChevronRight size={13} className="text-[var(--text3)] flex-shrink-0" />}
+          <div className="w-7 h-7 rounded-full bg-[rgba(6,182,212,.12)] text-[var(--accent2)] flex items-center justify-center text-[10px] font-bold flex-shrink-0">
+            #
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="font-medium text-[13px]">{formatDate(r.submitted_at)}</span>
+              {region && <span className="text-[12px] text-[var(--text2)]">{region.flag} {region.label}</span>}
+              <span className="text-[11px] text-[var(--text3)]">{Object.keys(r.answers).length} answer{Object.keys(r.answers).length !== 1 ? 's' : ''}</span>
+            </div>
+          </div>
+        </button>
+        <Button
+          size="sm" variant="ghost"
+          className="opacity-0 group-hover:opacity-100 transition-opacity hover:text-[var(--red)]"
+          onClick={onDelete}
+        >
+          <Trash2 size={13} />
+        </Button>
+      </div>
+
+      {expanded && (
+        <div className="mt-3 pt-3 border-t border-[var(--border)] flex flex-col gap-2">
+          {questions.map((q) => {
+            const ans = r.answers[q.id];
+            if (ans === undefined || ans === null || ans === '') return null;
+            const display = Array.isArray(ans) ? ans.join(', ') : String(ans);
+            return (
+              <div key={q.id} className="flex gap-3">
+                <span className="text-[11px] text-[var(--text3)] w-40 flex-shrink-0 truncate" title={q.label}>{q.label}</span>
+                <span className="text-[12px] text-[var(--text)]">{display}</span>
+              </div>
+            );
+          })}
+          {questions.every((q) => r.answers[q.id] === undefined || r.answers[q.id] === null || r.answers[q.id] === '') && (
+            <p className="text-[11px] text-[var(--text3)]">No answers recorded.</p>
+          )}
+        </div>
+      )}
     </div>
   );
 }

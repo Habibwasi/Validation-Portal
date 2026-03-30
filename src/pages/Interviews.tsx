@@ -18,14 +18,14 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import toast from 'react-hot-toast';
 
 const interviewSchema = z.object({
-  pseudonym:    z.string().min(1, 'Pseudonym required'),
-  region:       z.string().min(1, 'Select a region'),
-  conducted_at: z.string().min(1, 'Date required'),
-  pilot_ready:  z.boolean(),
-  notes:        z.string().optional(),
-  quotes:       z.array(z.object({ text: z.string() })),
-  tags_raw:     z.string().optional(), // comma-separated
-  pain_scores:  z.record(z.string(), z.number()),
+  participant:    z.string().min(1, 'Participant name required'),
+  region:         z.string().min(1, 'Select a region'),
+  interviewed_at: z.string().min(1, 'Date required'),
+  pilot_ready:    z.boolean(),
+  notes:          z.string().optional(),
+  quotes:         z.array(z.object({ text: z.string() })),
+  tags_raw:       z.string().optional(), // comma-separated
+  pain_scores:    z.record(z.string(), z.number()),
 });
 type IForm = z.infer<typeof interviewSchema>;
 
@@ -45,19 +45,20 @@ export default function Interviews() {
 
   const onSave = async (data: IForm) => {
     setSaving(true);
+    const { data: { user } } = await supabase.auth.getUser();
     const tags = data.tags_raw?.split(',').map((s) => s.trim()).filter(Boolean) ?? [];
     const quotes = data.quotes.map((q) => q.text).filter(Boolean);
     const payload = {
       project_id: id,
-      pseudonym: data.pseudonym,
+      user_id: user!.id,
+      participant: data.participant,
       region: data.region,
-      conducted_at: data.conducted_at,
+      interviewed_at: data.interviewed_at,
       pilot_ready: data.pilot_ready,
       notes: data.notes ?? null,
       quotes,
       tags,
       pain_scores: data.pain_scores,
-      raw_answers: {},
     };
 
     if (editTarget) {
@@ -131,7 +132,7 @@ export default function Interviews() {
         onClose={() => setDelTarget(null)}
         onConfirm={onDelete}
         title="Remove interview"
-        message={`Remove the interview with "${delTarget?.pseudonym}"? This cannot be undone.`}
+        message={`Remove the interview with "${delTarget?.participant}"? This cannot be undone.`}
         loading={deleting}
       />
     </div>
@@ -143,6 +144,8 @@ export default function Interviews() {
 function InterviewRow({ interview: i, onEdit, onDelete }: {
   interview: Interview; onEdit: () => void; onDelete: () => void;
 }) {
+  const { questions } = useProjectStore();
+  const questionLabels = Object.fromEntries(questions.map((q) => [q.id, q.label]));
   const region = REGIONS.find((r) => r.code === i.region);
   const scores = Object.values(i.pain_scores) as number[];
   const avgScore = scores.length ? (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1) : null;
@@ -153,12 +156,12 @@ function InterviewRow({ interview: i, onEdit, onDelete }: {
       <div className="flex items-center gap-3 cursor-pointer" onClick={() => setExpanded((v) => !v)}>
         {/* Avatar */}
         <div className="w-9 h-9 rounded-full bg-[rgba(59,130,246,.15)] text-[var(--accent)] flex items-center justify-center font-bold text-[12px] flex-shrink-0">
-          {i.pseudonym.slice(0, 2).toUpperCase()}
+          {i.participant.slice(0, 2).toUpperCase()}
         </div>
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-semibold text-[13px]">{i.pseudonym}</span>
+            <span className="font-semibold text-[13px]">{i.participant}</span>
             {region && (
               <span className="text-[12px] text-[var(--text2)]">{region.flag} {region.label}</span>
             )}
@@ -169,7 +172,7 @@ function InterviewRow({ interview: i, onEdit, onDelete }: {
             )}
           </div>
           <div className="text-[11px] text-[var(--text3)] mt-0.5">
-            {formatDate(i.conducted_at)}
+            {formatDate(i.interviewed_at)}
             {i.tags.length > 0 && (
               <span className="ml-2">{i.tags.slice(0,3).join(' · ')}</span>
             )}
@@ -220,7 +223,7 @@ function InterviewRow({ interview: i, onEdit, onDelete }: {
               <div className="flex flex-wrap gap-2">
                 {Object.entries(i.pain_scores).map(([qid, score]) => (
                   <div key={qid} className="bg-[var(--surface2)] rounded-lg px-2.5 py-1 text-[11px]">
-                    <span className="text-[var(--text3)]">{qid}</span>
+                    <span className="text-[var(--text3)]">{questionLabels[qid] ?? qid}</span>
                     <span className={`ml-1.5 font-bold ${score as number >= 7 ? 'text-[var(--red)]' : 'text-[var(--yellow)]'}`}>
                       {score as number}/10
                     </span>
@@ -250,7 +253,7 @@ function InterviewModal({ open, initial, painQuestions, onClose, onSave, saving 
   const { register, handleSubmit, control, reset, formState: { errors } } = useForm<IForm>({
     resolver: zodResolver(interviewSchema),
     defaultValues: {
-      pseudonym: '', region: '', conducted_at: new Date().toISOString().slice(0, 10),
+      participant: '', region: '', interviewed_at: new Date().toISOString().slice(0, 10),
       pilot_ready: false, notes: '', quotes: [], tags_raw: '', pain_scores: {},
     },
   });
@@ -262,9 +265,9 @@ function InterviewModal({ open, initial, painQuestions, onClose, onSave, saving 
   useEffect(() => {
     if (initial) {
       reset({
-        pseudonym: initial.pseudonym,
+        participant: initial.participant,
         region: initial.region,
-        conducted_at: initial.conducted_at.slice(0, 10),
+        interviewed_at: initial.interviewed_at.slice(0, 10),
         pilot_ready: initial.pilot_ready,
         notes: initial.notes ?? '',
         quotes: initial.quotes.map((t) => ({ text: t })),
@@ -273,7 +276,7 @@ function InterviewModal({ open, initial, painQuestions, onClose, onSave, saving 
       });
     } else {
       reset({
-        pseudonym: '', region: '', conducted_at: new Date().toISOString().slice(0, 10),
+        participant: '', region: '', interviewed_at: new Date().toISOString().slice(0, 10),
         pilot_ready: false, notes: '', quotes: [], tags_raw: '', pain_scores: {},
       });
     }
@@ -294,10 +297,13 @@ function InterviewModal({ open, initial, painQuestions, onClose, onSave, saving 
     >
       <form className="flex flex-col gap-4" onSubmit={handleSubmit(onSave)}>
         <div className="grid grid-cols-2 gap-3">
-          <Input label="Pseudonym" placeholder="e.g. Ahmed D." required
-            error={errors.pseudonym?.message} {...register('pseudonym')} />
+          <Input label="Participant name" placeholder="e.g. Ahmed D. (keep anonymous)" required
+            hint="First name + initial is enough — no personal data needed"
+            tooltip="A short anonymous identifier for this person. You'll see this name when reviewing interviews. No full names needed."
+            error={errors.participant?.message} {...register('participant')} />
           <Select
             label="Region" required
+            tooltip="Where this person is based. Used in the regional breakdown chart and helps the AI identify geographic patterns."
             placeholder="Select region"
             options={REGIONS.map((r) => ({ value: r.code, label: `${r.flag} ${r.label}` }))}
             error={errors.region?.message}
@@ -306,10 +312,11 @@ function InterviewModal({ open, initial, painQuestions, onClose, onSave, saving 
         </div>
 
         <div className="grid grid-cols-2 gap-3">
-          <Input label="Date conducted" type="date" required
-            error={errors.conducted_at?.message} {...register('conducted_at')} />
+          <Input label="Interview date" type="date" required
+            tooltip="When did this conversation happen? Used to track research velocity over time."
+            error={errors.interviewed_at?.message} {...register('interviewed_at')} />
           <div className="flex flex-col gap-1.5 justify-end">
-            <label className="flex items-center gap-2 text-[13px] cursor-pointer py-2.5">
+            <label className="flex items-center gap-2 text-[13px] cursor-pointer py-2.5" title="Mark this person as a pilot-ready lead — someone who expressed strong interest and would likely use or pay for your solution. These are counted separately in the AI analysis.">
               <input type="checkbox" {...register('pilot_ready')} className="w-auto accent-[var(--green)]" />
               <CheckCircle size={14} className="text-[var(--green)]" />
               Pilot-ready lead
@@ -320,9 +327,16 @@ function InterviewModal({ open, initial, painQuestions, onClose, onSave, saving 
         {/* Pain scores */}
         {painQuestions.length > 0 && (
           <div>
-            <div className="text-[13px] font-medium text-[var(--text)] mb-2">
-              Pain scores <span className="text-[var(--text3)] font-normal text-[11px]">(1 = low, 10 = extreme)</span>
+            <div className="text-[13px] font-medium text-[var(--text)] mb-0.5 flex items-center">
+              Pain scores
+              <span className="relative group inline-flex items-center ml-1.5">
+                <span className="w-3.5 h-3.5 rounded-full border border-[var(--text3)] text-[var(--text3)] text-[9px] font-bold flex items-center justify-center cursor-default select-none">?</span>
+                <span className="pointer-events-none absolute top-full left-0 mt-1.5 w-64 bg-[var(--surface2)] border border-[var(--border)] text-[var(--text2)] text-[11px] leading-relaxed rounded-lg px-3 py-2 shadow-xl opacity-0 group-hover:opacity-100 transition-opacity z-50 whitespace-normal">
+                  Score each pain point 1–10 based on what this person said during the interview. 1 = barely a problem, 10 = extremely painful. Interviews where the average score ≥ 7 count as a strong pain signal in the AI analysis.
+                </span>
+              </span>
             </div>
+            <p className="text-[11px] text-[var(--accent2)] mb-2">⚡ These feed directly into AI signal analysis</p>
             <div className="flex flex-col gap-2">
               {painQuestions.map((q) => (
                 <div key={q.id} className="flex items-center gap-3">
@@ -342,8 +356,14 @@ function InterviewModal({ open, initial, painQuestions, onClose, onSave, saving 
 
         {/* Quotes */}
         <div>
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-[13px] font-medium text-[var(--text)]">Key quotes</span>
+          <div className="flex items-center justify-between mb-1">
+            <span className="relative group inline-flex items-center text-[13px] font-medium text-[var(--text)]">
+              Key quotes
+              <span className="w-3.5 h-3.5 rounded-full border border-[var(--text3)] text-[var(--text3)] text-[9px] font-bold flex items-center justify-center cursor-default select-none ml-1.5">?</span>
+              <span className="pointer-events-none absolute top-full left-0 mt-1.5 w-64 bg-[var(--surface2)] border border-[var(--border)] text-[var(--text2)] text-[11px] leading-relaxed rounded-lg px-3 py-2 shadow-xl opacity-0 group-hover:opacity-100 transition-opacity z-50 whitespace-normal">
+                Paste exact words the participant used. The AI picks the most compelling ones to include in the analysis report as supporting evidence.
+              </span>
+            </span>
             <Button size="sm" variant="ghost" type="button" onClick={() => addQuote({ text: '' })}>
               <Plus size={12} /> Add quote
             </Button>
@@ -362,19 +382,23 @@ function InterviewModal({ open, initial, painQuestions, onClose, onSave, saving 
               </Button>
             </div>
           ))}
+          <p className="text-[11px] text-[var(--accent2)] mb-2">💬 Verbatim quotes are surfaced by AI as key evidence</p>
           {quoteFields.length === 0 && (
-            <p className="text-[11px] text-[var(--text3)]">No quotes yet — direct quotes from interviewees are gold for your analysis.</p>
+            <p className="text-[11px] text-[var(--text3)]">No quotes yet — exact words from the participant are gold for AI analysis.</p>
           )}
         </div>
 
         <Input
           label="Tags"
+          tooltip="Comma-separated keywords that describe themes from this interview (e.g. cost, trust, speed). The AI shows the most frequent tags across all interviews to surface common patterns."
           placeholder="e.g. remittance, family-monitoring, pilot"
           hint="Comma-separated tags for filtering"
           {...register('tags_raw')}
         />
 
-        <Textarea label="Notes" placeholder="Additional observations, context, or follow-up items…"
+        <Textarea label="Notes"
+          tooltip="Private notes for yourself — follow-up questions, unusual context, or anything that doesn't fit elsewhere. These are not sent to the AI."
+          placeholder="Additional observations, context, or follow-up items…"
           {...register('notes')} />
       </form>
     </Modal>

@@ -95,61 +95,69 @@ alter table survey_responses  enable row level security;
 alter table analysis_cache    enable row level security;
 
 -- projects: owner full access
+drop policy if exists "projects: owner all" on "projects";
 create policy "projects: owner all"
-  on projects for all
+  on "projects" for all
   using (user_id = auth.uid())
   with check (user_id = auth.uid());
 
 -- questions: owner of the parent project
+drop policy if exists "questions: project owner all" on "questions";
 create policy "questions: project owner all"
-  on questions for all
+  on "questions" for all
   using (
-    project_id in (select id from projects where user_id = auth.uid())
+    project_id in (select id from "projects" where user_id = auth.uid())
   )
   with check (
-    project_id in (select id from projects where user_id = auth.uid())
+    project_id in (select id from "projects" where user_id = auth.uid())
   );
 
--- questions: anon can read (needed for public survey)
+-- questions: anon can read
+drop policy if exists "questions: anon read" on "questions";
 create policy "questions: anon read"
-  on questions for select
+  on "questions" for select
   using (true);
 
--- projects: anon can read non-archived (needed for public survey slug lookup)
+-- projects: anon can read non-archived
+drop policy if exists "projects: anon read non-archived" on "projects";
 create policy "projects: anon read non-archived"
-  on projects for select
+  on "projects" for select
   using (archived = false);
 
 -- interviews: owner of project
+drop policy if exists "interviews: project owner all" on "interviews";
 create policy "interviews: project owner all"
-  on interviews for all
+  on "interviews" for all
   using (
     user_id = auth.uid()
-    and project_id in (select id from projects where user_id = auth.uid())
+    and project_id in (select id from "projects" where user_id = auth.uid())
   )
   with check (
     user_id = auth.uid()
-    and project_id in (select id from projects where user_id = auth.uid())
+    and project_id in (select id from "projects" where user_id = auth.uid())
   );
 
--- survey_responses: anyone can insert (public survey)
+-- survey_responses: anyone can insert
+drop policy if exists "survey_responses: public insert" on "survey_responses";
 create policy "survey_responses: public insert"
-  on survey_responses for insert
+  on "survey_responses" for insert
   with check (true);
 
 -- survey_responses: owner of project can read
+drop policy if exists "survey_responses: project owner read" on "survey_responses";
 create policy "survey_responses: project owner read"
-  on survey_responses for select
+  on "survey_responses" for select
   using (
-    project_id in (select id from projects where user_id = auth.uid())
+    project_id in (select id from "projects" where user_id = auth.uid())
   );
 
 -- analysis_cache: owner of project
+drop policy if exists "analysis_cache: project owner all" on "analysis_cache";
 create policy "analysis_cache: project owner all"
-  on analysis_cache for all
+  on "analysis_cache" for all
   using (
-    project_id in (select id from projects where user_id = auth.uid())
+    project_id in (select id from "projects" where user_id = auth.uid())
   )
   with check (
-    project_id in (select id from projects where user_id = auth.uid())
+    project_id in (select id from "projects" where user_id = auth.uid())
   );

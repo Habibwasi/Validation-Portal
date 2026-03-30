@@ -41,18 +41,18 @@ validate-portal/
 │   │   │   ├── Card.tsx        # Accent-border card + CardTitle
 │   │   │   ├── Badge.tsx       # Colour badges (blue/green/yellow/red/orange/purple/neutral)
 │   │   │   ├── Modal.tsx       # Modal + ConfirmModal
-│   │   │   ├── Input.tsx       # Input, Textarea, Select (all with label/error/hint)
+│   │   │   ├── Input.tsx       # Input, Textarea, Select (all with label/error/hint/tooltip)
 │   │   │   ├── ProgressBar.tsx # ProgressBar + StatProgress
 │   │   │   └── EmptyState.tsx  # EmptyState + Skeleton + SkeletonCard
 │   │   └── layout/
-│   │       ├── AppShell.tsx    # Fixed sidebar nav (project-context-aware)
+│   │       ├── AppShell.tsx    # Fixed sidebar nav + project switcher dropdown
 │   │       └── PageHeader.tsx  # Consistent page header with title + actions slot
 │   ├── pages/
 │   │   ├── Login.tsx           # Email/password login (Supabase auth)
 │   │   ├── Signup.tsx          # Email/password signup + confirmation redirect
 │   │   ├── Projects.tsx        # Project list — create / archive / delete
 │   │   ├── Dashboard.tsx       # Per-project analytics (charts, stats, quote bank)
-│   │   ├── SurveyBuilder.tsx   # Drag-to-reorder question editor + shareable public link
+│   │   ├── SurveyBuilder.tsx   # Drag-to-reorder question editor + shareable link + response list
 │   │   ├── Interviews.tsx      # Interview logger — log / edit / delete / expand
 │   │   ├── Analysis.tsx        # AI analysis — generate / regenerate / display results
 │   │   ├── ProjectSettings.tsx # Metric mapping + survey copy + archive
@@ -98,19 +98,25 @@ validate-portal/
 - Question types: Short text, Long text, Pain rating (1–10), Scale (1–10), Yes/No, Single choice, Multi-choice
 - Share panel with shareable public survey URL — uses `VITE_APP_URL` in production, falls back to `window.location.origin`
 - Copy or preview in one click
+- **Survey Responses panel** at the bottom — view all submitted responses, expand any row to see per-question answers, and delete individual responses
 
 ### Public Survey (`/s/:slug`)
 - Fully unauthenticated — no login required for respondents
 - Step-by-step one-question-per-screen UX with progress bar
-- Back/Next navigation
+- Back/Next navigation with phantom-submit protection (transitioning guard)
 - Custom welcome and thank-you messages (set in Project Settings)
 - Stores response with region + answers in `survey_responses`
 
 ### Interview Tracker
-- Log interviews with pseudonym, region, date, pain scores (per question), quotes, tags, notes
-- Pilot-ready flag per interview
-- Expand row to view quotes, notes, and individual pain scores
+- Log interviews with **participant name**, region, date, pain scores (per question), quotes, tags, notes
+- Every field has a **tooltip** (`?` icon) explaining how it feeds into the AI analysis
+- Pain scores: 1–10 per `rating`/`scale` question — avg ≥ 7 = strong pain signal
+- Key quotes are verbatim and surfaced in the AI report as evidence
+- Tags are comma-separated; most frequent tags across all interviews appear in the AI prompt
+- Pilot-ready flag marks leads who would use/pay for the solution
+- Expand row to view quotes, notes, and individual pain scores (shows question labels, not IDs)
 - Edit and delete
+- **Project switcher** in sidebar — switch between projects without going back to the projects list; stays on the same page (e.g. stays on Interviews)
 
 ### Dashboard
 - Stat cards: total interviews, surveys, pain %, concept interest %, pilot-ready count
@@ -137,7 +143,7 @@ validate-portal/
 ```
 projects          — id, user_id, name, slug, description, archived, target_*, settings (JSONB)
 questions         — id, project_id, type, label, options[], required, display_order
-interviews        — id, project_id, user_id, pseudonym, region, pain_scores (JSONB), quotes[], tags[], notes, pilot_ready, interviewed_at
+interviews        — id, project_id, user_id, participant, region, pain_scores (JSONB), quotes[], tags[], notes, pilot_ready, interviewed_at
 survey_responses  — id, project_id, answers (JSONB), region, submitted_at
 analysis_cache    — id, project_id, result (JSONB), created_at
 ```

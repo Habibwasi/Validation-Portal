@@ -38,15 +38,14 @@ export interface Question {
 export interface Interview {
   id: string;
   project_id: string;
-  pseudonym: string;
+  participant: string;
   region: RegionCode;
-  conducted_at: string;
+  interviewed_at: string;
   pain_scores: Record<string, number>; // question_id → 1-10
   quotes: string[];
   tags: string[];
   notes: string | null;
   pilot_ready: boolean;
-  raw_answers: Record<string, unknown>;
   created_at: string;
 }
 

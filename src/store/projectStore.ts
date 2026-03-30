@@ -40,7 +40,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   refreshDeps: async (projectId) => {
     const [qRes, iRes, sRes] = await Promise.all([
       supabase.from('questions').select('*').eq('project_id', projectId).order('display_order'),
-      supabase.from('interviews').select('*').eq('project_id', projectId).order('conducted_at', { ascending: false }),
+      supabase.from('interviews').select('*').eq('project_id', projectId).order('interviewed_at', { ascending: false }),
       supabase.from('survey_responses').select('*').eq('project_id', projectId).order('submitted_at', { ascending: false }),
     ]);
     set({
