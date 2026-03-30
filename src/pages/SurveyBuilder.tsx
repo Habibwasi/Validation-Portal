@@ -90,7 +90,8 @@ export default function SurveyBuilder() {
     setReordering(false);
   };
 
-  const surveyUrl = current ? `${window.location.origin}/s/${current.slug}` : '';
+  const appBase = (import.meta.env.VITE_APP_URL as string | undefined)?.replace(/\/$/, '') ?? window.location.origin;
+  const surveyUrl = current ? `${appBase}/s/${current.slug}` : '';
 
   return (
     <div className="p-8">
