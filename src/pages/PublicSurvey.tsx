@@ -47,7 +47,7 @@ export default function PublicSurvey() {
   const progress = Math.round((step / totalSteps) * 100);
 
   const onSubmit = async (data: Record<string, unknown>) => {
-    if (!project) return;
+    if (!project || step !== questions.length) return;
     setSubmitting(true);
 
     const answers: Record<string, unknown> = {};
@@ -200,7 +200,7 @@ function QuestionInput({ q, register, watch, setValue }: QInputProps) {
   const val = watch(q.id) as number | string | undefined;
 
   if (q.type === 'text') {
-    return <Input placeholder="Your answer…" {...register(q.id)} />;
+    return <Input placeholder="Your answer…" {...register(q.id)} onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }} />;
   }
 
   if (q.type === 'long_text') {
