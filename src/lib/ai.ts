@@ -1,11 +1,4 @@
-import OpenAI from 'openai';
 import type { DashboardStats, AnalysisResult, Interview } from '@/types';
-
-function buildClient() {
-  const key = import.meta.env.VITE_OPENAI_API_KEY as string | undefined;
-  if (!key) return null;
-  return new OpenAI({ apiKey: key, dangerouslyAllowBrowser: true });
-}
 
 function buildPrompt(
   projectName: string,
@@ -94,23 +87,18 @@ export async function generateAnalysis(
   stats: DashboardStats,
   interviews: Interview[],
 ): Promise<AnalysisResult> {
-  const client = buildClient();
-  if (!client) {
-    throw new Error(
-      'OpenAI API key not configured. Add VITE_OPENAI_API_KEY to your .env.local file.',
-    );
-  }
-
   const prompt = buildPrompt(projectName, stats, interviews);
 
-  const response = await client.chat.completions.create({
-    model: 'gpt-4o-mini',
-    messages: [{ role: 'user', content: prompt }],
-    temperature: 0.3,
-    response_format: { type: 'json_object' },
+  const res = await fetch('/api/analyse', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prompt }),
   });
 
-  const text = response.choices[0]?.message?.content ?? '';
-  const parsed = JSON.parse(text) as AnalysisResult;
-  return parsed;
+  if (!res.ok) {
+    const { error } = await res.json().catch(() => ({ error: 'Unknown error' }));
+    throw new Error(error ?? `Server error ${res.status}`);
+  }
+
+  return res.json() as Promise<AnalysisResult>;
 }

@@ -121,10 +121,9 @@ validate-portal/
 
 ### AI Analysis
 - Reads `analysis_cache` table for existing results
-- "Generate Insights" calls OpenAI gpt-4o-mini with aggregated stats + sample quotes
+- "Generate Insights" sends aggregated stats + sample quotes to a **Vercel serverless function** (`api/analyse.ts`) which calls OpenAI gpt-4o-mini server-side — the API key never reaches the browser
 - Displays: verdict badge, summary, themes with strength, key quotes, numbered next steps, warnings
 - "Regenerate" clears cache and re-runs
-- Graceful warning if `VITE_OPENAI_API_KEY` is not set
 
 ### Project Settings
 - Map which survey questions feed each validation metric (pain, concept interest, pilot ready)
@@ -173,7 +172,7 @@ Fill in your values:
 ```env
 VITE_SUPABASE_URL=https://your-project-ref.supabase.co
 VITE_SUPABASE_ANON_KEY=your-anon-key
-VITE_OPENAI_API_KEY=sk-...        # optional — AI tab disabled if omitted
+OPENAI_API_KEY=sk-...             # server-side only — do NOT use VITE_ prefix
 VITE_APP_URL=https://your-app.vercel.app  # optional — used for shareable survey links
 ```
 
@@ -200,9 +199,10 @@ npm run build
 3. Add environment variables in the Vercel dashboard before deploying:
    - `VITE_SUPABASE_URL`
    - `VITE_SUPABASE_ANON_KEY`
-   - `VITE_OPENAI_API_KEY`
+   - `OPENAI_API_KEY` ← **no `VITE_` prefix** — kept server-side only, never in the bundle
    - `VITE_APP_URL` ← set this to your Vercel URL after first deploy, then redeploy
 4. SPA client-side routing is handled by `vercel.json` (already included)
+5. AI analysis is handled by `api/analyse.ts` — a Vercel serverless function that calls OpenAI server-side
 
 ### Supabase Auth for production
 If email confirmation is enabled, go to **Supabase Dashboard → Authentication → URL Configuration** and:

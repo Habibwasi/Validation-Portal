@@ -33,14 +33,8 @@ export default function Analysis() {
   const [cacheId, setCacheId] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [noKey, setNoKey] = useState(false);
 
   useEffect(() => {
-    if (!import.meta.env.VITE_OPENAI_API_KEY) {
-      setNoKey(true);
-      setLoading(false);
-      return;
-    }
     loadCache();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
@@ -105,7 +99,7 @@ export default function Analysis() {
         </Button>
       )}
       {!result && !loading && (
-        <Button variant="primary" onClick={() => generate(false)} loading={generating} disabled={totalData === 0 || noKey}>
+        <Button variant="primary" onClick={() => generate(false)} loading={generating} disabled={totalData === 0}>
           <Brain size={14} className="mr-1.5" />
           {generating ? 'Generating…' : 'Generate Insights'}
         </Button>
@@ -121,18 +115,6 @@ export default function Analysis() {
         actions={actions}
       />
 
-      {noKey && (
-        <div className="bg-[rgba(234,179,8,.08)] border border-[rgba(234,179,8,.2)] rounded-xl p-4 mb-6 flex gap-3">
-          <AlertTriangle size={18} className="text-[var(--yellow)] flex-shrink-0 mt-0.5" />
-          <div>
-            <p className="font-semibold text-[13px] text-[var(--yellow)] mb-1">OpenAI API key not configured</p>
-            <p className="text-[12px] text-[var(--text2)]">
-              Add <code className="bg-[var(--surface2)] px-1 py-0.5 rounded text-[11px]">VITE_OPENAI_API_KEY</code> to your <code className="bg-[var(--surface2)] px-1 py-0.5 rounded text-[11px]">.env</code> file and restart the dev server.
-            </p>
-          </div>
-        </div>
-      )}
-
       {loading && (
         <div className="space-y-4">
           <SkeletonCard />
@@ -140,7 +122,7 @@ export default function Analysis() {
         </div>
       )}
 
-      {!loading && !result && !generating && !noKey && (
+      {!loading && !result && !generating && (
         <EmptyState
           icon={<Brain size={32} />}
           title="No analysis yet"
