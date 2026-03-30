@@ -12,7 +12,7 @@ A general-purpose startup validation research tool. Create projects, build publi
 | Styling | Tailwind CSS v4 (CSS-variables dark theme) |
 | Backend / DB | Supabase (PostgreSQL + Auth + RLS) |
 | State | Zustand |
-| Routing | React Router v6 |
+| Routing | React Router v7 |
 | Forms | React Hook Form + Zod |
 | Charts | Recharts |
 | Drag & Drop | @dnd-kit/core + sortable |
@@ -49,10 +49,10 @@ validate-portal/
 │   │       └── PageHeader.tsx  # Consistent page header with title + actions slot
 │   ├── pages/
 │   │   ├── Login.tsx           # Email/password login (Supabase auth)
-│   │   ├── Signup.tsx          # Email/password signup
+│   │   ├── Signup.tsx          # Email/password signup + confirmation redirect
 │   │   ├── Projects.tsx        # Project list — create / archive / delete
 │   │   ├── Dashboard.tsx       # Per-project analytics (charts, stats, quote bank)
-│   │   ├── SurveyBuilder.tsx   # Drag-to-reorder question editor + public link
+│   │   ├── SurveyBuilder.tsx   # Drag-to-reorder question editor + shareable public link
 │   │   ├── Interviews.tsx      # Interview logger — log / edit / delete / expand
 │   │   ├── Analysis.tsx        # AI analysis — generate / regenerate / display results
 │   │   ├── ProjectSettings.tsx # Metric mapping + survey copy + archive
@@ -62,6 +62,7 @@ validate-portal/
 │   └── index.css               # Tailwind import + CSS variable dark theme
 ├── supabase/
 │   └── schema.sql              # 5 tables + indexes + RLS policies
+├── vercel.json                 # SPA rewrite rule for Vercel deployment
 ├── .env.example                # Environment variable template
 └── vite.config.ts              # Tailwind plugin + @/ path alias
 ```
@@ -95,7 +96,8 @@ validate-portal/
 ### Survey Builder
 - Add, edit, delete, and **drag-to-reorder** questions
 - Question types: Short text, Long text, Pain rating (1–10), Scale (1–10), Yes/No, Single choice, Multi-choice
-- Share panel with public survey URL — copy or preview in one click
+- Share panel with shareable public survey URL — uses `VITE_APP_URL` in production, falls back to `window.location.origin`
+- Copy or preview in one click
 
 ### Public Survey (`/s/:slug`)
 - Fully unauthenticated — no login required for respondents
@@ -172,6 +174,7 @@ Fill in your values:
 VITE_SUPABASE_URL=https://your-project-ref.supabase.co
 VITE_SUPABASE_ANON_KEY=your-anon-key
 VITE_OPENAI_API_KEY=sk-...        # optional — AI tab disabled if omitted
+VITE_APP_URL=https://your-app.vercel.app  # optional — used for shareable survey links
 ```
 
 ### 2. Run the database schema
@@ -187,3 +190,23 @@ App runs at `http://localhost:5173`
 ```
 npm run build
 ```
+
+---
+
+## Deploying to Vercel
+
+1. Go to [vercel.com/new](https://vercel.com/new) and import the `Habibwasi/Validation-Portal` GitHub repo
+2. Vercel auto-detects Vite — no build config needed
+3. Add environment variables in the Vercel dashboard before deploying:
+   - `VITE_SUPABASE_URL`
+   - `VITE_SUPABASE_ANON_KEY`
+   - `VITE_OPENAI_API_KEY`
+   - `VITE_APP_URL` ← set this to your Vercel URL after first deploy, then redeploy
+4. SPA client-side routing is handled by `vercel.json` (already included)
+
+### Supabase Auth for production
+If email confirmation is enabled, go to **Supabase Dashboard → Authentication → URL Configuration** and:
+- Set **Site URL** to your Vercel URL
+- Add `https://your-app.vercel.app/**` to **Redirect URLs**
+
+Alternatively, disable email confirmation under **Authentication → Providers → Email** for internal/private tools.
