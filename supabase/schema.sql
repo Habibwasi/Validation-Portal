@@ -151,6 +151,14 @@ create policy "survey_responses: project owner read"
     project_id in (select id from "projects" where user_id = auth.uid())
   );
 
+-- survey_responses: owner of project can delete
+drop policy if exists "survey_responses: project owner delete" on "survey_responses";
+create policy "survey_responses: project owner delete"
+  on "survey_responses" for delete
+  using (
+    project_id in (select id from "projects" where user_id = auth.uid())
+  );
+
 -- analysis_cache: owner of project
 drop policy if exists "analysis_cache: project owner all" on "analysis_cache";
 create policy "analysis_cache: project owner all"
