@@ -1,4 +1,4 @@
-﻿// ΓöÇΓöÇΓöÇ Database types ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+// ─── Database types ────────────────────────────────────────────────────────
 
 export type QuestionType = 'text' | 'long_text' | 'scale' | 'choice' | 'multi_choice' | 'yes_no' | 'rating';
 
@@ -22,7 +22,7 @@ export interface ProjectSettings {
   pain_question_ids?: string[]; // question IDs treated as "pain" metrics
   concept_question_id?: string; // question ID used for concept interest %
   pilot_question_id?: string;   // question ID used for pilot-ready count
-  enabled_languages?: string[]; // ISO codes of languages the survey is translated into
+  enabled_languages?: string[]; // e.g. ['en','ar','bn']
 }
 
 export interface Question {
@@ -33,8 +33,8 @@ export interface Question {
   options: string[] | null; // for choice / multi_choice
   required: boolean;
   display_order: number;
-  translations: Record<string, { label: string; options?: string[] }> | null;
   created_at: string;
+  translations: Record<string, { label: string; options?: string[] }> | null;
 }
 
 export interface Interview {
@@ -43,7 +43,7 @@ export interface Interview {
   participant: string;
   region: RegionCode;
   interviewed_at: string;
-  pain_scores: Record<string, number>; // question_id ΓåÆ 1-10
+  pain_scores: Record<string, number>; // question_id → 1-10
   quotes: string[];
   tags: string[];
   notes: string | null;
@@ -54,7 +54,7 @@ export interface Interview {
 export interface SurveyResponse {
   id: string;
   project_id: string;
-  answers: Record<string, unknown>; // question_id ΓåÆ answer
+  answers: Record<string, unknown>; // question_id → answer
   region: RegionCode | null;
   submitted_at: string;
 }
@@ -83,7 +83,28 @@ export interface AnalysisTheme {
   strength: 'high' | 'medium' | 'low';
 }
 
-// ΓöÇΓöÇΓöÇ Region codes ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+// ─── Supported survey languages ───────────────────────────────────────────
+
+export interface SurveyLanguage {
+  code: string;
+  label: string;
+  flag: string;
+  rtl?: boolean;
+}
+
+export const SUPPORTED_LANGUAGES: SurveyLanguage[] = [
+  { code: 'en', label: 'English',    flag: '🇬🇧' },
+  { code: 'ar', label: 'Arabic',     flag: '🇸🇦', rtl: true },
+  { code: 'bn', label: 'Bengali',    flag: '🇧🇩' },
+  { code: 'fr', label: 'French',     flag: '🇫🇷' },
+  { code: 'es', label: 'Spanish',    flag: '🇪🇸' },
+  { code: 'tr', label: 'Turkish',    flag: '🇹🇷' },
+  { code: 'hi', label: 'Hindi',      flag: '🇮🇳' },
+  { code: 'da', label: 'Danish',     flag: '🇩🇰' },
+  { code: 'de', label: 'German',     flag: '🇩🇪' },
+];
+
+// ─── Region codes ──────────────────────────────────────────────────────────
 
 export type RegionCode =
   | 'eu' | 'me' | 'na' | 'ap' | 'bd' | 'latam' | 'africa' | 'other';
@@ -94,35 +115,18 @@ export interface Region {
   flag: string;
 }
 
-export interface SupportedLanguage {
-  code: string;
-  label: string;
-  flag: string;
-}
-
-export const SUPPORTED_LANGUAGES: SupportedLanguage[] = [
-  { code: 'ar', label: 'Arabic',  flag: '≡ƒç╕≡ƒçª' },
-  { code: 'bn', label: 'Bengali', flag: '≡ƒçº≡ƒç⌐' },
-  { code: 'fr', label: 'French',  flag: '≡ƒç½≡ƒç╖' },
-  { code: 'es', label: 'Spanish', flag: '≡ƒç¬≡ƒç╕' },
-  { code: 'tr', label: 'Turkish', flag: '≡ƒç╣≡ƒç╖' },
-  { code: 'hi', label: 'Hindi',   flag: '≡ƒç«≡ƒç│' },
-  { code: 'da', label: 'Danish',  flag: '≡ƒç⌐≡ƒç░' },
-  { code: 'de', label: 'German',  flag: '≡ƒç⌐≡ƒç¬' },
-];
-
 export const REGIONS: Region[] = [
-  { code: 'eu',     label: 'Europe',        flag: '≡ƒç¬≡ƒç║' },
-  { code: 'me',     label: 'Middle East',   flag: '≡ƒîÖ' },
-  { code: 'na',     label: 'North America', flag: '≡ƒîÄ' },
-  { code: 'ap',     label: 'Asia Pacific',  flag: '≡ƒîÅ' },
-  { code: 'bd',     label: 'Bangladesh',    flag: '≡ƒçº≡ƒç⌐' },
-  { code: 'latam',  label: 'Latin America', flag: '≡ƒîÄ' },
-  { code: 'africa', label: 'Africa',        flag: '≡ƒîì' },
-  { code: 'other',  label: 'Other',         flag: '≡ƒîÉ' },
+  { code: 'eu',     label: 'Europe',        flag: '🇪🇺' },
+  { code: 'me',     label: 'Middle East',   flag: '🌙' },
+  { code: 'na',     label: 'North America', flag: '🌎' },
+  { code: 'ap',     label: 'Asia Pacific',  flag: '🌏' },
+  { code: 'bd',     label: 'Bangladesh',    flag: '🇧🇩' },
+  { code: 'latam',  label: 'Latin America', flag: '🌎' },
+  { code: 'africa', label: 'Africa',        flag: '🌍' },
+  { code: 'other',  label: 'Other',         flag: '🌐' },
 ];
 
-// ΓöÇΓöÇΓöÇ UI helpers ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+// ─── UI helpers ────────────────────────────────────────────────────────────
 
 export interface DashboardStats {
   totalInterviews: number;
