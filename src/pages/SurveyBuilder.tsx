@@ -9,7 +9,7 @@ import {
   useSortable, arrayMove,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical, Plus, Trash2, Copy, ExternalLink, ChevronDown, ChevronRight } from 'lucide-react';
+import { GripVertical, Plus, Trash2, Copy, ExternalLink, ChevronDown, ChevronRight, Wand2 } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -63,6 +63,7 @@ export default function SurveyBuilder() {
   const [editTarget, setEditTarget] = useState<Question | null>(null);
   const [saving, setSaving] = useState(false);
   const [reordering, setReordering] = useState(false);
+  const [generating, setGenerating] = useState(false);
   const [delResponse, setDelResponse] = useState<SurveyResponse | null>(null);
   const [deletingResponse, setDeletingResponse] = useState(false);
 
@@ -94,6 +95,65 @@ export default function SurveyBuilder() {
     setReordering(false);
   };
 
+  const onGenerate = async () => {
+    if (!current) return;
+    setGenerating(true);
+    try {
+      const prompt = `You are helping a first-time founder validate their startup idea.
+Project: "${current.name}"
+Problem: "${current.description ?? 'Not specified'}"
+
+Suggest 5 concise survey questions to validate this idea with potential users.
+Focus on: pain severity, current alternatives, frequency, willingness to pay.
+
+Return ONLY valid JSON:
+{
+  "questions": [
+    { "type": "rating", "label": "How painful is this problem for you on a scale of 1–10?" },
+    { "type": "yes_no", "label": "Do you currently pay for any solution to this?" },
+    { "type": "long_text", "label": "How do you currently handle this problem?" },
+    { "type": "choice", "label": "How often do you face this problem?", "options": ["Daily", "Weekly", "Monthly", "Rarely"] },
+    { "type": "text", "label": "What would make you switch to a new solution?" }
+  ]
+}
+Valid types: text, long_text, rating, scale, yes_no, choice, multi_choice. Only include "options" for choice or multi_choice types. Tailor every question to the specific project and problem above.`;
+
+      const res = await fetch('/api/analyse', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt }),
+      });
+      if (!res.ok) {
+        const errText = await res.text();
+        throw new Error(`HTTP ${res.status}${errText ? `: ${errText}` : ''}`);
+      }
+      const data = await res.json() as { questions?: { type: string; label: string; options?: string[] }[] };
+      const suggested = data.questions ?? [];
+      if (suggested.length === 0) throw new Error('No questions returned');
+
+      const maxOrder = localQs.reduce((m, q) => Math.max(m, q.display_order), -1);
+      await Promise.all(
+        suggested.map((q, i) =>
+          supabase.from('questions').insert({
+            project_id: id,
+            type: q.type,
+            label: q.label,
+            required: false,
+            options: q.options ?? null,
+            display_order: maxOrder + 1 + i,
+          }),
+        ),
+      );
+      await refreshDeps(id!);
+      toast.success(`${suggested.length} questions added — edit any you want to tweak`);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      toast.error(`Could not generate questions: ${msg}`);
+    } finally {
+      setGenerating(false);
+    }
+  };
+
   const appBase = (import.meta.env.VITE_APP_URL as string | undefined)?.replace(/\/$/, '') ?? window.location.origin;
   const surveyUrl = current ? `${appBase}/s/${current.slug}` : '';
 
@@ -103,15 +163,20 @@ export default function SurveyBuilder() {
         title="Survey Builder"
         subtitle="Questions here become the public survey respondents fill out."
         actions={
-          <Button variant="primary" onClick={() => setAddOpen(true)}>
-            <Plus size={15} /> Add question
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="secondary" onClick={onGenerate} loading={generating} disabled={!current?.description}>
+              <Wand2 size={15} /> Generate with AI
+            </Button>
+            <Button variant="primary" onClick={() => setAddOpen(true)}>
+              <Plus size={15} /> Add question
+            </Button>
+          </div>
         }
       />
 
       {/* Share card */}
       {current && (
-        <Card className="mb-6 bg-[rgba(59,130,246,.04)] border-[rgba(59,130,246,.2)]">
+        <Card className="mb-6 bg-[rgba(245,158,11,.04)] border-[rgba(245,158,11,.2)]">
           <CardTitle>🔗 Public Survey Link</CardTitle>
           <div className="flex items-center gap-2">
             <code className="flex-1 text-[12px] font-mono text-[var(--accent2)] bg-[var(--surface2)] rounded-lg px-3 py-2 border border-[var(--border)] truncate">
@@ -271,7 +336,7 @@ function ResponseRow({ response: r, questions, onDelete }: {
   const region = REGIONS.find((reg) => reg.code === r.region);
 
   return (
-    <div className="bg-[var(--surface)] border border-[rgba(255,255,255,.04)] rounded-xl px-4 py-3 group hover:border-[rgba(59,130,246,.2)] transition-all">
+    <div className="bg-[var(--surface)] border border-[rgba(255,255,255,.04)] rounded-xl px-4 py-3 group hover:border-[rgba(245,158,11,.2)] transition-all">
       <div className="flex items-center gap-3">
         <button
           type="button"
@@ -279,7 +344,7 @@ function ResponseRow({ response: r, questions, onDelete }: {
           onClick={() => setExpanded((v) => !v)}
         >
           {expanded ? <ChevronDown size={13} className="text-[var(--text3)] flex-shrink-0" /> : <ChevronRight size={13} className="text-[var(--text3)] flex-shrink-0" />}
-          <div className="w-7 h-7 rounded-full bg-[rgba(6,182,212,.12)] text-[var(--accent2)] flex items-center justify-center text-[10px] font-bold flex-shrink-0">
+          <div className="w-7 h-7 rounded-full bg-[rgba(245,158,11,.12)] text-[var(--accent)] flex items-center justify-center text-[10px] font-bold flex-shrink-0">
             #
           </div>
           <div className="flex-1 min-w-0">
@@ -340,7 +405,7 @@ function SortableQuestion({
     <div
       ref={setNodeRef}
       style={style}
-      className="bg-[var(--surface)] border border-[rgba(255,255,255,.04)] rounded-xl px-4 py-3 flex items-center gap-3 group hover:border-[rgba(59,130,246,.25)] transition-all"
+      className="bg-[var(--surface)] border border-[rgba(255,255,255,.04)] rounded-xl px-4 py-3 flex items-center gap-3 group hover:border-[rgba(245,158,11,.25)] transition-all"
     >
       <div
         {...attributes}
