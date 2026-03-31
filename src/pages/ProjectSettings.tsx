@@ -10,12 +10,14 @@ import { SUPPORTED_LANGUAGES } from '@/types';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Card, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { Textarea, Select } from '@/components/ui/Input';
+import { Input, Textarea, Select } from '@/components/ui/Input';
 import { Badge } from '@/components/ui/Badge';
 import toast from 'react-hot-toast';
 import { Trash2 } from 'lucide-react';
 
 const schema = z.object({
+  name: z.string().min(1, 'Name is required').max(100),
+  description: z.string().max(1000).optional(),
   survey_welcome: z.string().max(300).optional(),
   survey_thankyou: z.string().max(300).optional(),
   concept_question_id: z.string().optional(),
@@ -45,6 +47,8 @@ export default function ProjectSettings() {
     setPainIds(project.settings?.pain_question_ids ?? []);
     setEnabledLangs(project.settings?.enabled_languages ?? []);
     reset({
+      name: project.name ?? '',
+      description: project.description ?? '',
       survey_welcome: project.settings?.survey_welcome ?? '',
       survey_thankyou: project.settings?.survey_thankyou ?? '',
       concept_question_id: project.settings?.concept_question_id ?? '',
@@ -64,6 +68,15 @@ export default function ProjectSettings() {
   const onSubmit = async (data: FormValues) => {
     if (!project) return;
     setSaving(true);
+
+    // Update name/description if changed
+    if (data.name !== project.name || (data.description ?? '') !== (project.description ?? '')) {
+      const { error: detailsError } = await supabase
+        .from('projects')
+        .update({ name: data.name, description: data.description || null })
+        .eq('id', project.id);
+      if (detailsError) { setSaving(false); toast.error('Failed to save project details'); return; }
+    }
 
     const settings: PS = {
       ...project.settings,
@@ -131,6 +144,30 @@ export default function ProjectSettings() {
       />
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+
+        {/* Idea Details */}
+        <Card accent="orange" className="p-5">
+          <CardTitle>Idea Details</CardTitle>
+          <p className="text-[12px] text-[var(--text3)] mb-4">
+            Edit the name and description of this idea.
+          </p>
+          <div className="space-y-4">
+            <Input
+              label="Idea Name"
+              placeholder="e.g. My Startup Idea"
+              error={errors.name?.message}
+              {...register('name')}
+            />
+            <Textarea
+              label="Description"
+              hint="Describe the problem you're solving and your proposed solution."
+              placeholder="e.g. A platform that helps founders validate their ideas before building."
+              rows={3}
+              error={errors.description?.message}
+              {...register('description')}
+            />
+          </div>
+        </Card>
 
         {/* Metric Mapping */}
         <Card accent="blue" className="p-5">
