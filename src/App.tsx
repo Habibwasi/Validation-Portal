@@ -69,7 +69,14 @@ export default function App() {
       <Routes>
         {/* Public routes */}
         <Route path="/login" element={<Login />} />
-        <Route path="/signup" element={<Signup />} />
+        <Route
+          path="/signup"
+          element={
+            import.meta.env.VITE_DISABLE_SIGNUP === 'true'
+              ? <Navigate to="/login" replace />
+              : <Signup />
+          }
+        />
         <Route path="/s/:slug" element={<PublicSurvey />} />
 
         {/* Protected routes */}

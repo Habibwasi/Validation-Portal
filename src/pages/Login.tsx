@@ -58,10 +58,12 @@ export default function Login() {
             </Button>
           </form>
 
-          <p className="text-center text-[12px] text-[var(--text3)] mt-4">
-            No account?{' '}
-            <Link to="/signup" className="text-[var(--accent)] hover:underline">Create one</Link>
-          </p>
+          {import.meta.env.VITE_DISABLE_SIGNUP !== 'true' && (
+            <p className="text-center text-[12px] text-[var(--text3)] mt-4">
+              No account?{' '}
+              <Link to="/signup" className="text-[var(--accent)] hover:underline">Create one</Link>
+            </p>
+          )}
         </div>
       </div>
     </div>

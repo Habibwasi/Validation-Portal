@@ -198,6 +198,7 @@ VITE_SUPABASE_URL=https://your-project-ref.supabase.co
 VITE_SUPABASE_ANON_KEY=your-anon-key
 GROQ_API_KEY=your-groq-api-key   # server-side only — get free key at console.groq.com/keys
 VITE_APP_URL=https://your-app.vercel.app  # optional — used for shareable survey links
+VITE_DISABLE_SIGNUP=true          # optional — set to 'true' to hide /signup and redirect it to /login
 ```
 
 ### 2. Run the database schema
@@ -225,6 +226,7 @@ npm run build
    - `VITE_SUPABASE_ANON_KEY`
    - `GROQ_API_KEY` ← **no `VITE_` prefix** — kept server-side only, never in the bundle. Get a free key at [console.groq.com/keys](https://console.groq.com/keys) (no credit card required, 14,400 req/day free)
    - `VITE_APP_URL` ← set this to your Vercel URL after first deploy, then redeploy
+   - `VITE_DISABLE_SIGNUP` ← set to `true` to disable public sign-up on production (redirects `/signup` to `/login` and hides the "Create one" link). Leave unset locally to keep signup working in dev.
 4. SPA client-side routing is handled by `vercel.json` (already included)
 5. AI analysis is handled by `api/analyse.ts` — a Vercel serverless function that calls **Groq (llama-3.3-70b-versatile)** server-side
 6. Survey translation is handled by `api/translate-survey.ts` — translates all questions into enabled languages via Groq and saves to the DB
