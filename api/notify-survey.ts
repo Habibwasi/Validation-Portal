@@ -8,14 +8,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const apiKey = process.env.RESEND_API_KEY;
-  const toEmail = process.env.NOTIFICATION_EMAIL;
 
   // Silently succeed if not configured — notifications are optional
-  if (!apiKey || !toEmail) {
+  if (!apiKey) {
     return res.status(200).json({ ok: true, skipped: true });
   }
 
-  const { projectName, region } = req.body as { projectName?: string; region?: string };
+  const { projectName, region, notifyEmail } = req.body as { projectName?: string; region?: string; notifyEmail?: string };
+
+  if (!notifyEmail) {
+    return res.status(200).json({ ok: true, skipped: true });
+  }
 
   const emailRes = await fetch('https://api.resend.com/emails', {
     method: 'POST',
@@ -24,8 +27,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
-      from: 'Validate Portal <notifications@resend.dev>',
-      to: [toEmail],
+      from: 'Validate Portal <onboarding@resend.dev>',
+      to: [notifyEmail],
       subject: `New survey response — ${projectName ?? 'your project'}`,
       html: `
         <div style="font-family:sans-serif;max-width:480px;margin:auto;padding:24px">

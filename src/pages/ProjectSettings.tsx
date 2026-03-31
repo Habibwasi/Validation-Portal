@@ -18,6 +18,7 @@ import { Trash2 } from 'lucide-react';
 const schema = z.object({
   name: z.string().min(1, 'Name is required').max(100),
   description: z.string().max(1000).optional(),
+  notify_email: z.string().email('Enter a valid email').or(z.literal('')).optional(),
   survey_welcome: z.string().max(300).optional(),
   survey_thankyou: z.string().max(300).optional(),
   concept_question_id: z.string().optional(),
@@ -49,10 +50,11 @@ export default function ProjectSettings() {
     reset({
       name: project.name ?? '',
       description: project.description ?? '',
+      notify_email: project.settings?.notify_email ?? '',
       survey_welcome: project.settings?.survey_welcome ?? '',
       survey_thankyou: project.settings?.survey_thankyou ?? '',
       concept_question_id: project.settings?.concept_question_id ?? '',
-      pilot_question_id: project.settings?.pilot_question_id ?? '',
+      pilot_question_id: project.settings?.pilot_question_id ?? ''
     });
   }
 
@@ -84,6 +86,7 @@ export default function ProjectSettings() {
       enabled_languages: enabledLangs.length ? enabledLangs : undefined,
       concept_question_id: data.concept_question_id || undefined,
       pilot_question_id: data.pilot_question_id || undefined,
+      notify_email: data.notify_email || undefined,
       survey_welcome: data.survey_welcome || undefined,
       survey_thankyou: data.survey_thankyou || undefined,
     };
@@ -245,6 +248,14 @@ export default function ProjectSettings() {
             Customise the text shown to respondents on the public survey page.
           </p>
           <div className="space-y-4">
+            <Input
+              label="Notification Email"
+              type="email"
+              hint="Get an email each time someone submits your survey. Leave blank to disable."
+              placeholder="you@example.com"
+              error={errors.notify_email?.message}
+              {...register('notify_email')}
+            />
             <Textarea
               label="Welcome Message"
               hint="Shown at the top of the survey. Max 300 characters."
