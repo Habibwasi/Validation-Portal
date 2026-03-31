@@ -14,7 +14,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const key = process.env.GROQ_API_KEY;
-  if (!key) return res.status(503).json({ error: 'Groq API key not configured.' });
+  if (!key) return res.status(503).json({ error: 'Groq API key not configured.', hint: 'GROQ_API_KEY env var is missing or empty on the server.' });
   if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return res.status(503).json({ error: 'Supabase not configured.' });
 
   const { project_id, languages } = req.body as {
@@ -88,7 +88,7 @@ ${JSON.stringify(questionsPayload, null, 2)}`;
     });
     if (!groqRes.ok) {
       const errText = await groqRes.text();
-      return res.status(502).json({ error: `Translation failed: ${errText}` });
+      return res.status(502).json({ error: `Translation failed: ${errText}`, keyPrefix: key.slice(0, 8) });
     }
     const groqData = await groqRes.json() as {
       choices?: { message?: { content?: string } }[];
