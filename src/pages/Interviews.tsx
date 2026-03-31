@@ -348,10 +348,10 @@ function InterviewModal({ open, initial, painQuestions, onClose, onSave, saving 
                 'Can you walk me through the last time this happened?',
                 'What do you do today to deal with this problem?',
                 'How much time / money does this cost you right now?',
-                'What's the most frustrating part of your current solution?',
+                "What's the most frustrating part of your current solution?",
                 'Have you ever tried to fix this? What stopped you?',
                 'Who else in your life has this problem?',
-                'If this problem disappeared tomorrow, what would change for you?',
+                "If this problem disappeared tomorrow, what would change for you?",
                 'Would you pay for something that solved this? What would feel fair?',
               ].map((q, i) => (
                 <div key={i} className="flex gap-2 text-[12px] text-[var(--text2)]">
