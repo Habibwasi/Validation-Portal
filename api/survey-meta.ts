@@ -52,7 +52,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const baseUrl = process.env.VERCEL_URL
     ? `https://${process.env.VERCEL_URL}`
-    : 'https://validate-portal.vercel.app';
+    : 'https://validation-portal.vercel.app';
 
   const imageUrl  = `${baseUrl}/og-preview.png`;
   const pageUrl   = `${baseUrl}/s/${slug}`;
