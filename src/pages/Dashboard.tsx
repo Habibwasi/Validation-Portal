@@ -158,12 +158,12 @@ export default function Dashboard() {
           {regionData.length === 0 ? (
             <EmptyState icon="🗺️" title="No region data yet" className="py-8" />
           ) : (
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-2.5">
               {regionData.map((r) => (
-                <div key={r.name} className="flex items-center gap-3">
-                  <span className="text-lg flex-shrink-0">{r.flag}</span>
-                  <span className="text-[12px] text-[var(--text2)] w-28 flex-shrink-0">{r.name}</span>
-                  <div className="flex-1 h-2 bg-[var(--border)] rounded-full overflow-hidden">
+                <div key={r.name} className="grid items-center gap-3" style={{ gridTemplateColumns: '1.5rem 10rem 1fr 1.5rem' }}>
+                  <span className="text-base leading-none">{r.flag}</span>
+                  <span className="text-[12px] text-[var(--text2)] truncate">{r.name}</span>
+                  <div className="h-2 bg-[var(--border)] rounded-full overflow-hidden">
                     <div
                       className="h-full rounded-full"
                       style={{
@@ -172,7 +172,7 @@ export default function Dashboard() {
                       }}
                     />
                   </div>
-                  <span className="text-[12px] font-semibold text-[var(--text)] w-8 text-right">{r.count}</span>
+                  <span className="text-[12px] font-semibold text-[var(--text)] text-right tabular-nums">{r.count}</span>
                 </div>
               ))}
             </div>
