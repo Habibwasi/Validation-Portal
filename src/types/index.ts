@@ -22,6 +22,7 @@ export interface ProjectSettings {
   pain_question_ids?: string[]; // question IDs treated as "pain" metrics
   concept_question_id?: string; // question ID used for concept interest %
   pilot_question_id?: string;   // question ID used for pilot-ready count
+  enabled_languages?: string[]; // e.g. ['en','ar','bn']
 }
 
 export interface Question {
@@ -33,6 +34,7 @@ export interface Question {
   required: boolean;
   display_order: number;
   created_at: string;
+  translations: Record<string, { label: string; options?: string[] }> | null;
 }
 
 export interface Interview {
@@ -80,6 +82,27 @@ export interface AnalysisTheme {
   evidence: string;
   strength: 'high' | 'medium' | 'low';
 }
+
+// ─── Supported survey languages ───────────────────────────────────────────
+
+export interface SurveyLanguage {
+  code: string;
+  label: string;
+  flag: string;
+  rtl?: boolean;
+}
+
+export const SUPPORTED_LANGUAGES: SurveyLanguage[] = [
+  { code: 'en', label: 'English',    flag: '🇬🇧' },
+  { code: 'ar', label: 'Arabic',     flag: '🇸🇦', rtl: true },
+  { code: 'bn', label: 'Bengali',    flag: '🇧🇩' },
+  { code: 'fr', label: 'French',     flag: '🇫🇷' },
+  { code: 'es', label: 'Spanish',    flag: '🇪🇸' },
+  { code: 'tr', label: 'Turkish',    flag: '🇹🇷' },
+  { code: 'hi', label: 'Hindi',      flag: '🇮🇳' },
+  { code: 'da', label: 'Danish',     flag: '🇩🇰' },
+  { code: 'de', label: 'German',     flag: '🇩🇪' },
+];
 
 // ─── Region codes ──────────────────────────────────────────────────────────
 

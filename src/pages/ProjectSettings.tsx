@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { useProjectStore } from '@/store/projectStore';
 import { supabase } from '@/lib/supabase';
 import type { ProjectSettings as PS } from '@/types';
+import { SUPPORTED_LANGUAGES } from '@/types';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Card, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -30,6 +31,8 @@ export default function ProjectSettings() {
   const [painIds, setPainIds] = useState<string[]>([]);
   const [syncedProjectId, setSyncedProjectId] = useState<string | null>(null);
   const [archiving, setArchiving] = useState(false);
+  const [enabledLanguages, setEnabledLanguages] = useState<string[]>(['en']);
+  const [translating, setTranslating] = useState(false);
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -40,6 +43,7 @@ export default function ProjectSettings() {
   if (project && project.id !== syncedProjectId) {
     setSyncedProjectId(project.id);
     setPainIds(project.settings?.pain_question_ids ?? []);
+    setEnabledLanguages(['en', ...(project.settings?.enabled_languages ?? [])]);
     reset({
       survey_welcome: project.settings?.survey_welcome ?? '',
       survey_thankyou: project.settings?.survey_thankyou ?? '',
@@ -68,6 +72,7 @@ export default function ProjectSettings() {
       pilot_question_id: data.pilot_question_id || undefined,
       survey_welcome: data.survey_welcome || undefined,
       survey_thankyou: data.survey_thankyou || undefined,
+      enabled_languages: enabledLanguages.filter((l) => l !== 'en'),
     };
 
     const { error } = await supabase
@@ -79,6 +84,34 @@ export default function ProjectSettings() {
     if (error) { toast.error('Failed to save settings'); return; }
     toast.success('Settings saved');
     if (id) loadProject(id);
+  };
+
+  const toggleLanguage = (code: string) => {
+    if (code === 'en') return; // English is always on
+    setEnabledLanguages((prev) =>
+      prev.includes(code) ? prev.filter((l) => l !== code) : [...prev, code]
+    );
+  };
+
+  const generateTranslations = async () => {
+    if (!project) return;
+    const langs = enabledLanguages.filter((l) => l !== 'en');
+    if (langs.length === 0) { toast.error('Enable at least one language besides English.'); return; }
+    setTranslating(true);
+    try {
+      const resp = await fetch('/api/translate-survey', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ project_id: project.id, languages: langs }),
+      });
+      const json = await resp.json() as { translated?: number; error?: string };
+      if (!resp.ok) { toast.error(json.error ?? 'Translation failed'); return; }
+      toast.success(`Translated ${json.translated ?? 0} questions into ${langs.length} language(s)`);
+    } catch {
+      toast.error('Network error — translation failed');
+    } finally {
+      setTranslating(false);
+    }
   };
 
   const archiveProject = async () => {
@@ -196,6 +229,49 @@ export default function ProjectSettings() {
               {...register('survey_thankyou')}
             />
           </div>
+        </Card>
+
+        {/* Survey Languages */}
+        <Card accent="purple" className="p-5">
+          <CardTitle>Survey Languages</CardTitle>
+          <p className="text-[12px] text-[var(--text3)] mb-4">
+            Select which languages respondents can choose from. Click "Generate Translations" to auto-translate all questions via AI.
+          </p>
+          <div className="flex flex-wrap gap-2 mb-4">
+            {SUPPORTED_LANGUAGES.map((l) => {
+              const active = enabledLanguages.includes(l.code);
+              return (
+                <button
+                  key={l.code}
+                  type="button"
+                  disabled={l.code === 'en'}
+                  onClick={() => toggleLanguage(l.code)}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-[12px] font-semibold transition-all ${
+                    active
+                      ? 'bg-[rgba(139,92,246,.15)] border-[var(--accent2)] text-[var(--text)]'
+                      : 'bg-[var(--bg)] border-[var(--border)] text-[var(--text3)] hover:border-[var(--accent2)]'
+                  } disabled:opacity-60 disabled:cursor-not-allowed`}
+                >
+                  <span className="text-base">{l.flag}</span>
+                  {l.label}
+                  {active && l.code !== 'en' && <span className="text-[var(--accent2)]">✓</span>}
+                  {l.code === 'en' && <Badge variant="blue" size="sm">always on</Badge>}
+                </button>
+              );
+            })}
+          </div>
+          <Button
+            variant="secondary"
+            type="button"
+            size="sm"
+            loading={translating}
+            onClick={generateTranslations}
+          >
+            ✦ Generate Translations
+          </Button>
+          <p className="text-[11px] text-[var(--text3)] mt-2">
+            Translations are saved per-question and used automatically on the survey. Re-run any time after adding new questions.
+          </p>
         </Card>
 
         <div className="flex justify-end">

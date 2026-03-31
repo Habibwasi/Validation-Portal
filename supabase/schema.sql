@@ -169,3 +169,8 @@ create policy "analysis_cache: project owner all"
   with check (
     project_id in (select id from "projects" where user_id = auth.uid())
   );
+
+-- ── Survey translations migration ────────────────────────────
+-- Run this once on existing databases (safe to re-run)
+alter table questions
+  add column if not exists translations jsonb not null default '{}';

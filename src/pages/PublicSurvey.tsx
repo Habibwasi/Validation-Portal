@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { supabase } from '@/lib/supabase';
 import type { Project, Question, RegionCode } from '@/types';
-import { REGIONS } from '@/types';
+import { REGIONS, SUPPORTED_LANGUAGES } from '@/types';
 import { Button } from '@/components/ui/Button';
 import { Input, Textarea, Select } from '@/components/ui/Input';
 import { ProgressBar } from '@/components/ui/ProgressBar';
@@ -17,8 +17,10 @@ export default function PublicSurvey() {
   const [notFound, setNotFound] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [step, setStep] = useState(0); // 0 = region, then one question per step
+  // step: -1 = language pick, 0 = region, 1..N = questions
+  const [step, setStep] = useState(-1);
   const [transitioning, setTransitioning] = useState(false);
+  const [lang, setLang] = useState('en');
 
   const { register, handleSubmit, watch, setValue } = useForm<Record<string, unknown>>({});
 
@@ -47,11 +49,25 @@ export default function PublicSurvey() {
         .order('display_order');
       setQuestions(qs ?? []);
       setLoading(false);
+
+      // Skip language step if only English is enabled
+      const langs = proj.settings?.enabled_languages ?? [];
+      if (langs.length === 0) setStep(0);
     })();
   }, [slug]);
 
-  const totalSteps = questions.length + 1; // +1 for region
-  const progress = Math.round((step / totalSteps) * 100);
+  const totalSteps = questions.length + 1; // +1 for region (language step is before counting)
+  const progress = step < 0 ? 0 : Math.round((step / totalSteps) * 100);
+
+  // Languages enabled for this project (always include 'en')
+  const enabledLangs = SUPPORTED_LANGUAGES.filter((l) =>
+    ['en', ...(project?.settings?.enabled_languages ?? [])].includes(l.code)
+  );
+  const multiLang = enabledLangs.length > 1;
+
+  // Helper: get translated label/options for a question
+  const tLabel = (q: Question) => q.translations?.[lang]?.label ?? q.label;
+  const tOptions = (q: Question) => q.translations?.[lang]?.options ?? q.options;
 
   const onSubmit = async (data: Record<string, unknown>) => {
     if (!project || transitioning) return;
@@ -108,7 +124,7 @@ export default function PublicSurvey() {
     );
   }
 
-  const currentQ = step === 0 ? null : questions[step - 1];
+  const currentQ = step <= 0 ? null : questions[step - 1];
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-4 py-12 bg-[radial-gradient(circle_at_30%_20%,rgba(59,130,246,.07),transparent_40%),var(--bg)]">
@@ -118,26 +134,55 @@ export default function PublicSurvey() {
           <div className="font-black text-[18px] tracking-wider uppercase mb-2">
             {project?.name}
           </div>
-          {project?.settings?.survey_welcome && (
-            <p className="text-[var(--text2)] text-[13px]">{project.settings.survey_welcome}</p>
-          )}
-          {!project?.settings?.survey_welcome && (
-            <p className="text-[var(--text2)] text-[13px]">Anonymous survey — 100% confidential. No personal data collected.</p>
+          {step >= 0 && (
+            <>
+              {project?.settings?.survey_welcome && (
+                <p className="text-[var(--text2)] text-[13px]">{project.settings.survey_welcome}</p>
+              )}
+              {!project?.settings?.survey_welcome && (
+                <p className="text-[var(--text2)] text-[13px]">Anonymous survey — 100% confidential. No personal data collected.</p>
+              )}
+            </>
           )}
         </div>
 
         {/* Progress */}
-        <div className="mb-6">
-          <div className="flex justify-between text-[11px] text-[var(--text3)] mb-1.5">
-            <span>Question {Math.min(step + 1, totalSteps)} of {totalSteps}</span>
-            <span>{progress}%</span>
+        {step >= 0 && (
+          <div className="mb-6">
+            <div className="flex justify-between text-[11px] text-[var(--text3)] mb-1.5">
+              <span>Question {Math.min(step + 1, totalSteps)} of {totalSteps}</span>
+              <span>{progress}%</span>
+            </div>
+            <ProgressBar value={progress} height={5} />
           </div>
-          <ProgressBar value={progress} height={5} />
-        </div>
+        )}
 
         {/* Card */}
         <div className="bg-[var(--surface)] border border-[rgba(255,255,255,.04)] rounded-2xl p-6 shadow-[0_24px_60px_rgba(0,0,0,.3)]">
           <form onSubmit={handleSubmit(onSubmit)}>
+
+            {/* ── Language picker ── */}
+            {step === -1 && multiLang && (
+              <div className="flex flex-col gap-5">
+                <div>
+                  <h2 className="font-bold text-[16px] mb-1">Choose your language</h2>
+                  <p className="text-[12px] text-[var(--text3)]">Select the language you would like to answer in.</p>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  {enabledLangs.map((l) => (
+                    <button
+                      key={l.code}
+                      type="button"
+                      onClick={() => { setLang(l.code); goNext(); }}
+                      className="flex items-center gap-3 px-4 py-3.5 rounded-xl border text-[14px] font-semibold transition-all bg-[var(--bg)] border-[var(--border)] text-[var(--text2)] hover:border-[var(--accent)] hover:text-[var(--text)]"
+                    >
+                      <span className="text-2xl">{l.flag}</span>
+                      <span>{l.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {step === 0 && (
               <div className="flex flex-col gap-4">
@@ -149,22 +194,29 @@ export default function PublicSurvey() {
                   options={REGIONS.map((r) => ({ value: r.code, label: `${r.flag} ${r.label}` }))}
                   {...register('_region')}
                 />
-                <div className="flex justify-end mt-2">
-                  <Button variant="primary" type="button" onClick={goNext}>
-                    Next →
-                  </Button>
+                <div className="flex justify-between mt-2">
+                  {multiLang && (
+                    <Button variant="ghost" type="button" onClick={() => setStep(-1)}>
+                      ← Back
+                    </Button>
+                  )}
+                  <div className="ml-auto">
+                    <Button variant="primary" type="button" onClick={goNext}>
+                      Next →
+                    </Button>
+                  </div>
                 </div>
               </div>
             )}
 
             {currentQ && step > 0 && step <= questions.length && (
               <div className="flex flex-col gap-4">
-                <h2 className="font-bold text-[15px] leading-snug">{currentQ.label}</h2>
+                <h2 className="font-bold text-[15px] leading-snug">{tLabel(currentQ)}</h2>
                 {!currentQ.required && (
                   <p className="text-[11px] text-[var(--text3)] -mt-2">Optional</p>
                 )}
 
-                <QuestionInput q={currentQ} register={register} watch={watch} setValue={setValue} />
+                <QuestionInput q={currentQ} register={register} watch={watch} setValue={setValue} lang={lang} tOptions={tOptions} />
 
                 <div className="flex justify-between mt-2">
                   <Button variant="ghost" type="button" onClick={() => setStep((s) => s - 1)}>
@@ -201,10 +253,13 @@ interface QInputProps {
   register: ReturnType<typeof useForm<Record<string, unknown>>>['register'];
   watch: ReturnType<typeof useForm<Record<string, unknown>>>['watch'];
   setValue: ReturnType<typeof useForm<Record<string, unknown>>>['setValue'];
+  lang: string;
+  tOptions: (q: Question) => string[] | null;
 }
 
-function QuestionInput({ q, register, watch, setValue }: QInputProps) {
+function QuestionInput({ q, register, watch, setValue, tOptions }: QInputProps) {
   const val = watch(q.id) as number | string | undefined;
+  const opts = tOptions(q);
 
   if (q.type === 'text') {
     return <Input placeholder="Your answer…" {...register(q.id)} onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }} />;
@@ -215,9 +270,10 @@ function QuestionInput({ q, register, watch, setValue }: QInputProps) {
   }
 
   if (q.type === 'yes_no') {
+    const yesNoOpts = (opts && opts.length === 2) ? opts : ['Yes', 'No'];
     return (
       <div className="flex gap-3">
-        {['Yes', 'No'].map((opt) => (
+        {yesNoOpts.map((opt) => (
           <button
             key={opt}
             type="button"
@@ -263,10 +319,10 @@ function QuestionInput({ q, register, watch, setValue }: QInputProps) {
     );
   }
 
-  if (q.type === 'choice' && q.options) {
+  if (q.type === 'choice' && opts) {
     return (
       <div className="flex flex-col gap-2">
-        {q.options.map((opt) => (
+        {opts.map((opt) => (
           <button
             key={opt}
             type="button"
@@ -284,11 +340,11 @@ function QuestionInput({ q, register, watch, setValue }: QInputProps) {
     );
   }
 
-  if (q.type === 'multi_choice' && q.options) {
+  if (q.type === 'multi_choice' && opts) {
     const selected = (val as string[] | undefined) ?? [];
     return (
       <div className="flex flex-col gap-2">
-        {q.options.map((opt) => {
+        {opts.map((opt) => {
           const isSelected = selected.includes(opt);
           return (
             <button
