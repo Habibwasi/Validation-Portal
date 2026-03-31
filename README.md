@@ -16,7 +16,7 @@ A general-purpose startup validation research tool. Create projects, build publi
 | Forms | React Hook Form + Zod |
 | Charts | Recharts |
 | Drag & Drop | @dnd-kit/core + sortable |
-| AI Analysis | Google Gemini 1.5 Flash (via REST) |
+| AI Analysis | Groq (llama-3.3-70b-versatile, free tier) |
 | Notifications | react-hot-toast |
 | Icons | lucide-react |
 
@@ -143,7 +143,7 @@ When a survey URL (`/s/:slug`) is pasted into WhatsApp, iMessage, Telegram, Link
 
 ### AI Analysis
 - Reads `analysis_cache` table for existing results
-- "Generate Insights" sends aggregated stats + sample quotes to a **Vercel serverless function** (`api/analyse.ts`) which calls **Google Gemini 1.5 Flash** server-side — the API key never reaches the browser
+- "Generate Insights" sends aggregated stats + sample quotes to a **Vercel serverless function** (`api/analyse.ts`) which calls **Groq (llama-3.3-70b-versatile)** server-side — the API key never reaches the browser
 - Displays: verdict badge, summary, themes with strength, key quotes, numbered next steps, warnings
 - "Regenerate" clears cache and re-runs
 
@@ -151,7 +151,7 @@ When a survey URL (`/s/:slug`) is pasted into WhatsApp, iMessage, Telegram, Link
 - Map which survey questions feed each validation metric (pain, concept interest, pilot ready)
 - Customise survey welcome and thank-you text
 - **Survey Languages** — toggle which languages to enable for the public survey
-- **Generate Translations** — one-click AI translation of all question labels and options into every enabled language (powered by Gemini via `api/translate-survey.ts`); translations are stored in the `questions.translations` JSONB column
+- **Generate Translations** — one-click AI translation of all question labels and options into every enabled language (powered by Groq via `api/translate-survey.ts`); translations are stored in the `questions.translations` JSONB column
 - Archive project (data preserved)
 
 ---
@@ -196,7 +196,7 @@ Fill in your values:
 ```env
 VITE_SUPABASE_URL=https://your-project-ref.supabase.co
 VITE_SUPABASE_ANON_KEY=your-anon-key
-GOOGLE_GENERATIVE_AI_KEY=...      # server-side only — get free key at aistudio.google.com/apikeys
+GROQ_API_KEY=your-groq-api-key   # server-side only — get free key at console.groq.com/keys
 VITE_APP_URL=https://your-app.vercel.app  # optional — used for shareable survey links
 ```
 
@@ -223,11 +223,11 @@ npm run build
 3. Add environment variables in the Vercel dashboard before deploying:
    - `VITE_SUPABASE_URL`
    - `VITE_SUPABASE_ANON_KEY`
-   - `GOOGLE_GENERATIVE_AI_KEY` ← **no `VITE_` prefix** — kept server-side only, never in the bundle. Get a free key at [aistudio.google.com/apikeys](https://aistudio.google.com/apikeys) (no credit card required, 1500 req/day free)
+   - `GROQ_API_KEY` ← **no `VITE_` prefix** — kept server-side only, never in the bundle. Get a free key at [console.groq.com/keys](https://console.groq.com/keys) (no credit card required, 14,400 req/day free)
    - `VITE_APP_URL` ← set this to your Vercel URL after first deploy, then redeploy
 4. SPA client-side routing is handled by `vercel.json` (already included)
-5. AI analysis is handled by `api/analyse.ts` — a Vercel serverless function that calls **Google Gemini 1.5 Flash** server-side
-6. Survey translation is handled by `api/translate-survey.ts` — translates all questions into enabled languages via Gemini and saves to the DB
+5. AI analysis is handled by `api/analyse.ts` — a Vercel serverless function that calls **Groq (llama-3.3-70b-versatile)** server-side
+6. Survey translation is handled by `api/translate-survey.ts` — translates all questions into enabled languages via Groq and saves to the DB
 7. Link preview cards are handled by `api/survey-meta.ts` — serves dynamic OG tags to crawlers; `vercel.json` routes bot user-agents to this function automatically. No extra config needed.
 
 ### Supabase Auth for production

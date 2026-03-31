@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 
 const SUPABASE_URL      = process.env.VITE_SUPABASE_URL      ?? process.env.SUPABASE_URL      ?? '';
 const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY ?? process.env.SUPABASE_ANON_KEY ?? '';
-const GEMINI_API_URL    = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent';
+const GROQ_API_URL      = 'https://api.groq.com/openai/v1/chat/completions';
 
 // Allow up to 60s — large translation jobs can be slow
 export const config = { maxDuration: 60 };
@@ -13,8 +13,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const key = process.env.GOOGLE_GENERATIVE_AI_KEY;
-  if (!key) return res.status(503).json({ error: 'Google Gemini API key not configured.' });
+  const key = process.env.GROQ_API_KEY;
+  if (!key) return res.status(503).json({ error: 'Groq API key not configured.' });
   if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return res.status(503).json({ error: 'Supabase not configured.' });
 
   const { project_id, languages } = req.body as {
@@ -73,22 +73,27 @@ ${JSON.stringify(questionsPayload, null, 2)}`;
 
   let parsed: Record<string, Record<string, { label: string; options: string[] }>>;
   try {
-    const geminiRes = await fetch(`${GEMINI_API_URL}?key=${key}`, {
+    const groqRes = await fetch(GROQ_API_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${key}`,
+      },
       body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.2, responseMimeType: 'application/json' },
+        model: 'llama-3.3-70b-versatile',
+        messages: [{ role: 'user', content: prompt }],
+        temperature: 0.2,
+        response_format: { type: 'json_object' },
       }),
     });
-    if (!geminiRes.ok) {
-      const errText = await geminiRes.text();
+    if (!groqRes.ok) {
+      const errText = await groqRes.text();
       return res.status(502).json({ error: `Translation failed: ${errText}` });
     }
-    const geminiData = await geminiRes.json() as {
-      candidates?: { content?: { parts?: { text?: string }[] } }[];
+    const groqData = await groqRes.json() as {
+      choices?: { message?: { content?: string } }[];
     };
-    const text = geminiData.candidates?.[0]?.content?.parts?.[0]?.text ?? '{}';
+    const text = groqData.choices?.[0]?.message?.content ?? '{}';
     parsed = JSON.parse(text);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);

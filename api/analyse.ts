@@ -1,15 +1,15 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
-const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent';
+const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const key = process.env.GOOGLE_GENERATIVE_AI_KEY;
+  const key = process.env.GROQ_API_KEY;
   if (!key) {
-    return res.status(503).json({ error: 'Google Gemini API key not configured on server.' });
+    return res.status(503).json({ error: 'Groq API key not configured on server.' });
   }
 
   const { prompt } = req.body as { prompt?: string };
@@ -17,28 +17,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ error: 'Missing prompt in request body.' });
   }
 
-  const response = await fetch(`${GEMINI_API_URL}?key=${key}`, {
+  const response = await fetch(GROQ_API_URL, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${key}`,
+    },
     body: JSON.stringify({
-      contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: {
-        temperature: 0.3,
-        responseMimeType: 'application/json',
-      },
+      model: 'llama-3.3-70b-versatile',
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0.3,
+      response_format: { type: 'json_object' },
     }),
   });
 
   if (!response.ok) {
     const err = await response.text();
-    return res.status(502).json({ error: `Gemini error: ${err}` });
+    return res.status(502).json({ error: `Groq error: ${err}` });
   }
 
   const data = await response.json() as {
-    candidates?: { content?: { parts?: { text?: string }[] } }[];
+    choices?: { message?: { content?: string } }[];
   };
 
-  const text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? '{}';
+  const text = data.choices?.[0]?.message?.content ?? '{}';
   return res.status(200).json(JSON.parse(text));
 }
 
