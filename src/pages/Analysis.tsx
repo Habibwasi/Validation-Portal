@@ -95,13 +95,13 @@ export default function Analysis() {
       {result && (
         <Button variant="ghost" size="sm" onClick={() => generate(true)} loading={generating}>
           <RefreshCw size={14} className="mr-1.5" />
-          Regenerate
+          Run again
         </Button>
       )}
       {!result && !loading && (
         <Button variant="primary" onClick={() => generate(false)} loading={generating} disabled={totalData === 0}>
           <Brain size={14} className="mr-1.5" />
-          {generating ? 'Generating…' : 'Generate Insights'}
+          {generating ? 'Analysing…' : 'What does my data say?'}
         </Button>
       )}
     </div>
@@ -110,8 +110,8 @@ export default function Analysis() {
   return (
     <div className="p-6 max-w-3xl mx-auto pb-16">
       <PageHeader
-        title="AI Analysis"
-        subtitle="LLM-powered signal validation based on your interviews and survey data"
+        title="Your Results"
+        subtitle="Based on everything you've collected so far — here's what the data is telling you."
         actions={actions}
       />
 
@@ -125,15 +125,15 @@ export default function Analysis() {
       {!loading && !result && !generating && (
         <EmptyState
           icon={<Brain size={32} />}
-          title="No analysis yet"
+          title="Nothing to analyse yet"
           description={
             totalData === 0
-              ? 'Log at least one interview or survey response before running analysis.'
-              : `You have ${totalData} data point${totalData !== 1 ? 's' : ''}. Click "Generate Insights" to run AI analysis.`
+              ? 'Talk to at least one person or get one survey response first.'
+              : `You've got ${totalData} data point${totalData !== 1 ? 's' : ''}. Ready to see what it means?`
           }
           action={
             totalData > 0
-              ? <Button variant="primary" onClick={() => generate(false)}>Generate Insights</Button>
+              ? <Button variant="primary" onClick={() => generate(false)}>What does my data say?</Button>
               : undefined
           }
         />
@@ -142,8 +142,8 @@ export default function Analysis() {
       {generating && (
         <div className="flex flex-col items-center gap-4 py-16 text-center">
           <div className="w-10 h-10 border-2 border-[var(--accent)] border-t-transparent rounded-full animate-spin" />
-          <p className="text-[var(--text2)] text-[13px]">Analysing {interviews.length} interview{interviews.length !== 1 ? 's' : ''} and {surveys.length} survey response{surveys.length !== 1 ? 's' : ''}…</p>
-          <p className="text-[11px] text-[var(--text3)]">This typically takes 5–15 seconds.</p>
+          <p className="text-[var(--text2)] text-[13px]">Reading through your conversations and survey responses…</p>
+          <p className="text-[11px] text-[var(--text3)]">This usually takes about 10 seconds.</p>
         </div>
       )}
 
@@ -166,7 +166,7 @@ export default function Analysis() {
           {/* Themes */}
           {result.themes.length > 0 && (
             <section>
-              <h2 className="font-bold text-[13px] uppercase tracking-wider text-[var(--text3)] mb-3">Themes Identified</h2>
+              <h2 className="font-bold text-[13px] uppercase tracking-wider text-[var(--text3)] mb-3">Patterns we noticed</h2>
               <div className="space-y-3">
                 {result.themes.map((theme, i) => {
                   const sm = STRENGTH_META[theme.strength ?? 'medium'] ?? STRENGTH_META.medium;
@@ -194,7 +194,7 @@ export default function Analysis() {
           {/* Key quotes */}
           {result.key_quotes.length > 0 && (
             <section>
-              <h2 className="font-bold text-[13px] uppercase tracking-wider text-[var(--text3)] mb-3">Key Quotes</h2>
+              <h2 className="font-bold text-[13px] uppercase tracking-wider text-[var(--text3)] mb-3">What people said</h2>
               <div className="space-y-3">
                 {result.key_quotes.map((quote, i) => (
                   <blockquote
@@ -212,7 +212,7 @@ export default function Analysis() {
             {/* Next steps */}
             {result.next_steps.length > 0 && (
               <section>
-                <h2 className="font-bold text-[13px] uppercase tracking-wider text-[var(--text3)] mb-3">Next Steps</h2>
+                <h2 className="font-bold text-[13px] uppercase tracking-wider text-[var(--text3)] mb-3">What to do next</h2>
                 <Card className="p-4">
                   <ol className="space-y-2">
                     {result.next_steps.map((step, i) => (
@@ -231,7 +231,7 @@ export default function Analysis() {
             {/* Warnings */}
             {result.warnings.length > 0 && (
               <section>
-                <h2 className="font-bold text-[13px] uppercase tracking-wider text-[var(--text3)] mb-3">Watch Out For</h2>
+                <h2 className="font-bold text-[13px] uppercase tracking-wider text-[var(--text3)] mb-3">Things to watch out for</h2>
                 <Card className="p-4 bg-[rgba(234,179,8,.05)] border-[rgba(234,179,8,.15)]">
                   <ul className="space-y-2">
                     {result.warnings.map((w, i) => (
@@ -247,7 +247,7 @@ export default function Analysis() {
           </div>
 
           <p className="text-center text-[11px] text-[var(--text3)]">
-            Generated by gpt-4o-mini · Based on current project data · <button className="text-[var(--accent2)] hover:underline" onClick={() => generate(true)}>Regenerate</button>
+            Powered by Groq AI · Based on your current data · <button className="text-[var(--accent2)] hover:underline" onClick={() => generate(true)}>Run again</button>
           </p>
         </div>
       )}

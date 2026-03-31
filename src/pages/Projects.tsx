@@ -77,7 +77,7 @@ export default function Projects() {
     setProjects([created, ...projects]);
     setShowCreate(false);
     reset();
-    toast.success('Project created');
+    toast.success("You're off to a great start!");
     navigate(`/p/${created.id}`);
   };
 
@@ -88,7 +88,7 @@ export default function Projects() {
       .eq('id', p.id);
     if (error) { toast.error(error.message); return; }
     setProjects(projects.map((x) => x.id === p.id ? { ...x, archived: !x.archived } : x));
-    toast.success(p.archived ? 'Project restored' : 'Project archived');
+    toast.success(p.archived ? 'Idea restored' : 'Idea archived');
   };
 
   const onDelete = async () => {
@@ -99,7 +99,7 @@ export default function Projects() {
     if (error) { toast.error(error.message); return; }
     setProjects(projects.filter((p) => p.id !== delTarget.id));
     setDelTarget(null);
-    toast.success('Project deleted');
+    toast.success('Idea deleted');
   };
 
   const filtered = projects.filter((p) => p.archived === (filter === 'archived'));
@@ -107,11 +107,11 @@ export default function Projects() {
   return (
     <div className="p-8">
       <PageHeader
-        title="Your Projects"
-        subtitle="Each project has its own survey, interview log, and AI analysis."
+        title="Your Ideas"
+        subtitle="Pick an idea to work on, or start validating a new one."
         actions={
           <Button variant="primary" onClick={() => setShowCreate(true)}>
-            <Plus size={15} /> New Project
+            <Plus size={15} /> Start a new idea
           </Button>
         }
       />
@@ -124,7 +124,7 @@ export default function Projects() {
             onClick={() => setFilter(f)}
             className={`px-4 py-1.5 rounded-lg text-[12px] font-semibold transition-all capitalize ${
               filter === f
-                ? 'bg-gradient-to-r from-[var(--accent)] to-[var(--accent2)] text-white shadow-[0_4px_12px_rgba(59,130,246,.3)]'
+                ? 'bg-gradient-to-r from-[var(--accent)] to-[var(--accent2)] text-white shadow-[0_4px_12px_rgba(245,158,11,.3)]'
                 : 'text-[var(--text2)] hover:text-[var(--text)]'
             }`}
           >
@@ -140,11 +140,11 @@ export default function Projects() {
       ) : filtered.length === 0 ? (
         <EmptyState
           icon={filter === 'archived' ? '📁' : '🚀'}
-          title={filter === 'archived' ? 'No archived projects' : 'No projects yet'}
-          description={filter === 'active' ? 'Create your first research project to get started.' : undefined}
+          title={filter === 'archived' ? 'No archived ideas' : "You haven't started yet — that's okay"}
+          description={filter === 'active' ? "Add your first idea and we'll help you find out if people actually want it." : undefined}
           action={
             filter === 'active'
-              ? <Button variant="primary" onClick={() => setShowCreate(true)}><Plus size={14} /> New Project</Button>
+              ? <Button variant="primary" onClick={() => setShowCreate(true)}><Plus size={14} /> Start a new idea</Button>
               : undefined
           }
         />
@@ -171,38 +171,38 @@ export default function Projects() {
       <Modal
         open={showCreate}
         onClose={() => { setShowCreate(false); reset(); }}
-        title="New Research Project"
+        title="What's your idea?"
         footer={
           <>
-            <Button variant="ghost" onClick={() => { setShowCreate(false); reset(); }}>Cancel</Button>
-            <Button variant="primary" loading={saving} onClick={handleSubmit(onCreate)}>Create project</Button>
+            <Button variant="ghost" onClick={() => { setShowCreate(false); reset(); }}>Never mind</Button>
+            <Button variant="primary" loading={saving} onClick={handleSubmit(onCreate)}>Let's go</Button>
           </>
         }
       >
         <form className="flex flex-col gap-4" onSubmit={handleSubmit(onCreate)}>
           <Input
-            label="Project name"
-            placeholder="e.g. NRB Super-App Validation"
+            label="What are you calling it?"
+            placeholder="e.g. My remittance app"
             required
             error={errors.name?.message}
             {...register('name')}
           />
           <Textarea
-            label="Description"
-            placeholder="What are you validating? Who is the target user?"
+            label="What problem does it solve?"
+            placeholder="Describe the problem and who has it — in plain language"
             error={errors.description?.message}
             {...register('description')}
           />
           <div className="grid grid-cols-2 gap-3">
             <Input
-              label="Interview target"
+              label="How many conversations do you want?"
               type="number"
               min={1}
               error={errors.target_interviews?.message}
               {...register('target_interviews', { valueAsNumber: true })}
             />
             <Input
-              label="Survey target"
+              label="How many survey responses?"
               type="number"
               min={1}
               error={errors.target_surveys?.message}
@@ -217,8 +217,8 @@ export default function Projects() {
         open={!!delTarget}
         onClose={() => setDelTarget(null)}
         onConfirm={onDelete}
-        title="Delete project"
-        message={`This will permanently delete "${delTarget?.name}" including all interviews, surveys, and analysis data. This cannot be undone.`}
+        title="Delete this idea?"
+        message={`This will permanently delete everything in "${delTarget?.name}" — conversations, surveys, and analysis. There's no going back.`}
         loading={deleting}
       />
     </div>
@@ -237,7 +237,7 @@ interface ProjectCardProps {
 
 function ProjectCard({ project: p, onOpen, onArchive, onDelete, onShareSurvey }: ProjectCardProps) {
   return (
-    <Card className="group hover:border-[rgba(59,130,246,.3)] transition-all cursor-pointer" accent="blue">
+    <Card className="group hover:border-[rgba(245,158,11,.3)] transition-all cursor-pointer" accent="blue">
       <div onClick={onOpen}>
         <div className="flex items-start justify-between mb-3">
           <div className="flex-1 min-w-0">
@@ -257,10 +257,10 @@ function ProjectCard({ project: p, onOpen, onArchive, onDelete, onShareSurvey }:
       {/* Actions */}
       <div className="flex items-center gap-1.5 mt-4 pt-3 border-t border-[var(--border)]">
         <Button size="sm" variant="primary" onClick={onOpen}>
-          <BarChart2 size={13} /> Open
+          <BarChart2 size={13} /> View
         </Button>
         <Button size="sm" variant="secondary" onClick={onShareSurvey}>
-          <ExternalLink size={13} /> Share survey
+          <ExternalLink size={13} /> Share link
         </Button>
         <div className="flex gap-1 ml-auto">
           <Button size="sm" variant="ghost" onClick={onArchive} title={p.archived ? 'Restore' : 'Archive'}>

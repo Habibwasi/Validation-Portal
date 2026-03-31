@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase';
 import { useProjectStore } from '@/store/projectStore';
 import { AppShell } from '@/components/layout/AppShell';
 
+import Landing from '@/pages/Landing';
 import Login from '@/pages/Login';
 import Signup from '@/pages/Signup';
 import Projects from '@/pages/Projects';
@@ -68,6 +69,7 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         {/* Public routes */}
+        <Route path="/" element={<Landing />} />
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
         <Route path="/s/:slug" element={<PublicSurvey />} />
@@ -75,7 +77,7 @@ export default function App() {
         {/* Protected routes */}
         <Route element={<RequireAuth />}>
           <Route element={<AppShell><Outlet /></AppShell>}>
-            <Route path="/" element={<Projects />} />
+            <Route path="/app" element={<Projects />} />
 
             {/* Project sub-routes */}
             <Route path="/p/:id" element={<ProjectLoader />}>
@@ -89,7 +91,7 @@ export default function App() {
         </Route>
 
         {/* Catch-all */}
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="*" element={<Navigate to="/app" replace />} />
       </Routes>
     </BrowserRouter>
   );

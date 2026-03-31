@@ -64,11 +64,11 @@ export default function Dashboard() {
     <div className="p-8">
       <PageHeader
         title={current.name}
-        subtitle={current.description ?? 'Validation research dashboard'}
+        subtitle={current.description ?? "Here's what your data says so far."}
         actions={
           <div className="flex gap-2">
             <Button size="sm" variant="secondary" onClick={() => navigate(`/p/${id}/analysis`)}>
-              <BarChart2 size={14} /> AI Analysis
+              <BarChart2 size={14} /> What does my data say?
             </Button>
           </div>
         }
@@ -76,14 +76,14 @@ export default function Dashboard() {
 
       {total === 0 && (
         <div className="bg-[rgba(59,130,246,.06)] border border-[rgba(59,130,246,.2)] rounded-xl px-4 py-3 mb-6 text-[13px] text-[var(--text2)]">
-          <strong className="text-[var(--text)]">Get started:</strong> Add survey questions, share the survey link, and log interviews to populate your dashboard.
+          <strong className="text-[var(--text)]">Here's what to do next:</strong> Build your survey, share it with a few people, and log your first conversation. Your dashboard will come alive.
         </div>
       )}
 
       {/* Stat cards */}
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
         <StatCard
-          label="Total Interviews"
+          label="Conversations"
           value={stats.totalInterviews}
           target={current.target_interviews}
           icon={<ClipboardList size={16} />}
@@ -91,7 +91,7 @@ export default function Dashboard() {
           color="linear-gradient(90deg,var(--accent),var(--accent2))"
         />
         <StatCard
-          label="Survey Responses"
+          label="Survey Fills"
           value={stats.totalSurveys}
           target={current.target_surveys}
           icon={<MessageSquare size={16} />}
@@ -99,25 +99,25 @@ export default function Dashboard() {
           color="linear-gradient(90deg,var(--green),#34d399)"
         />
         <StatCard
-          label="Strong Pain Signal"
+          label="Feel the Pain"
           value={stats.strongPainPct}
           unit="%"
           icon={<TrendingUp size={16} />}
           accent="yellow"
           color="linear-gradient(90deg,var(--yellow),#fbbf24)"
-          description="Avg pain score ≥7"
+          description="rated pain ≥7/10"
         />
         <StatCard
-          label="Concept Interest"
+          label="Want a Solution"
           value={stats.conceptInterestPct}
           unit="%"
           icon={<Target size={16} />}
           accent="purple"
           color="linear-gradient(90deg,var(--accent3),#a78bfa)"
-          description="Want a solution"
+          description="said yes to your concept"
         />
         <StatCard
-          label="Pilot-Ready Leads"
+          label="Would Actually Use It"
           value={stats.pilotReadyCount}
           icon={<Users size={16} />}
           accent="orange"
@@ -128,9 +128,9 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-6">
         {/* Pain chart */}
         <Card>
-          <CardTitle>🔥 Pain Point Severity</CardTitle>
+          <CardTitle>🔥 How much does it hurt?</CardTitle>
           {stats.painAverages.length === 0 ? (
-            <EmptyState icon="📊" title="No pain data yet" description="Log interviews with pain ratings to see this chart." className="py-8" />
+            <EmptyState icon="📊" title="No pain data yet" description="Talk to people first — log your first conversation to see pain scores here." className="py-8" />
           ) : (
             <ResponsiveContainer width="100%" height={220}>
               <BarChart data={stats.painAverages} layout="vertical" margin={{ left: 8, right: 24, top: 4, bottom: 4 }}>
@@ -153,7 +153,7 @@ export default function Dashboard() {
 
         {/* Region breakdown */}
         <Card>
-          <CardTitle>🌍 Region Breakdown</CardTitle>
+          <CardTitle>🌍 Where are they from?</CardTitle>
           {regionData.length === 0 ? (
             <EmptyState icon="🗺️" title="No region data yet" className="py-8" />
           ) : (
@@ -182,7 +182,7 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         {/* Recent activity */}
         <Card>
-          <CardTitle>📋 Recent Activity</CardTitle>
+          <CardTitle>📋 What's been happening</CardTitle>
           {recentActivity.length === 0 ? (
             <EmptyState icon="📭" title="No activity yet" className="py-8" />
           ) : (
@@ -205,9 +205,9 @@ export default function Dashboard() {
 
         {/* Quote bank */}
         <Card>
-          <CardTitle>💬 Quote Bank</CardTitle>
+          <CardTitle>💬 What they're actually saying</CardTitle>
           {sampleQuotes.length === 0 ? (
-            <EmptyState icon="💭" title="No quotes yet" description="Add quotes when logging interviews." className="py-8" />
+            <EmptyState icon="💭" title="No quotes yet" description="When you talk to people, write down exactly what they say. Their words are gold." className="py-8" />
           ) : (
             <div className="flex flex-col gap-3">
               {sampleQuotes.map((q, i) => (

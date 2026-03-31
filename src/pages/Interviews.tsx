@@ -37,8 +37,20 @@ export default function Interviews() {
   const [delTarget, setDelTarget] = useState<Interview | null>(null);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [sort, setSort] = useState<'date' | 'pain'>('date');
 
   const painQuestions = questions.filter((q) => q.type === 'rating' || q.type === 'scale');
+
+  const sorted = [...interviews].sort((a, b) => {
+    if (sort === 'pain') {
+      const aVals = Object.values(a.pain_scores) as number[];
+      const bVals = Object.values(b.pain_scores) as number[];
+      const aAvg = aVals.length ? aVals.reduce((x, y) => x + y, 0) / aVals.length : 0;
+      const bAvg = bVals.length ? bVals.reduce((x, y) => x + y, 0) / bVals.length : 0;
+      return bAvg - aAvg;
+    }
+    return new Date(b.interviewed_at).getTime() - new Date(a.interviewed_at).getTime();
+  });
 
   const openAdd = () => { setEditTarget(null); setFormOpen(true); };
   const openEdit = (i: Interview) => { setEditTarget(i); setFormOpen(true); };
@@ -73,7 +85,7 @@ export default function Interviews() {
     setSaving(false);
     setFormOpen(false);
     setEditTarget(null);
-    toast.success(editTarget ? 'Interview updated' : 'Interview logged');
+    toast.success(editTarget ? 'Updated!' : 'Nice, conversation saved!');
   };
 
   const onDelete = async () => {
@@ -83,17 +95,17 @@ export default function Interviews() {
     await refreshDeps(id!);
     setDeleting(false);
     setDelTarget(null);
-    toast.success('Interview removed');
+    toast.success('Removed');
   };
 
   return (
     <div className="p-8">
       <PageHeader
-        title="Interview Tracker"
-        subtitle={`${interviews.length} interview${interviews.length !== 1 ? 's' : ''} logged`}
+        title="Your Conversations"
+        subtitle={`${interviews.length} conversation${interviews.length !== 1 ? 's' : ''} logged so far`}
         actions={
           <Button variant="primary" onClick={openAdd}>
-            <Plus size={15} /> Log interview
+            <Plus size={15} /> Add a conversation
           </Button>
         }
       />
@@ -101,21 +113,38 @@ export default function Interviews() {
       {interviews.length === 0 ? (
         <EmptyState
           icon="🎙️"
-          title="No interviews logged yet"
-          description="Log your first customer interview to start tracking pain signals and quotes."
-          action={<Button variant="primary" onClick={openAdd}><Plus size={14} /> Log interview</Button>}
+          title="You haven't talked to anyone yet"
+          description="That's step 1 — find 3 people who might have the problem you're solving and talk to them."
+          action={<Button variant="primary" onClick={openAdd}><Plus size={14} /> Log my first conversation</Button>}
         />
       ) : (
-        <div className="flex flex-col gap-2">
-          {interviews.map((interview) => (
-            <InterviewRow
-              key={interview.id}
-              interview={interview}
-              onEdit={() => openEdit(interview)}
-              onDelete={() => setDelTarget(interview)}
-            />
-          ))}
-        </div>
+        <>
+          <div className="flex gap-1 bg-[var(--surface)] border border-[var(--border)] rounded-xl p-1 w-fit mb-4">
+            {([['date', 'Newest first'], ['pain', 'Highest pain']] as const).map(([val, label]) => (
+              <button
+                key={val}
+                onClick={() => setSort(val)}
+                className={`px-4 py-1.5 rounded-lg text-[12px] font-semibold transition-all ${
+                  sort === val
+                    ? 'bg-gradient-to-r from-[var(--accent)] to-[var(--accent2)] text-white shadow-[0_4px_12px_rgba(245,158,11,.3)]'
+                    : 'text-[var(--text2)] hover:text-[var(--text)]'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <div className="flex flex-col gap-2">
+            {sorted.map((interview) => (
+              <InterviewRow
+                key={interview.id}
+                interview={interview}
+                onEdit={() => openEdit(interview)}
+                onDelete={() => setDelTarget(interview)}
+              />
+            ))}
+          </div>
+        </>
       )}
 
       <InterviewModal
@@ -131,8 +160,8 @@ export default function Interviews() {
         open={!!delTarget}
         onClose={() => setDelTarget(null)}
         onConfirm={onDelete}
-        title="Remove interview"
-        message={`Remove the interview with "${delTarget?.participant}"? This cannot be undone.`}
+        title="Remove this conversation?"
+        message={`This will remove the conversation with "${delTarget?.participant}". This cannot be undone.`}
         loading={deleting}
       />
     </div>
@@ -152,10 +181,10 @@ function InterviewRow({ interview: i, onEdit, onDelete }: {
   const [expanded, setExpanded] = useState(false);
 
   return (
-    <div className="bg-[var(--surface)] border border-[rgba(255,255,255,.04)] rounded-xl px-4 py-3 group hover:border-[rgba(59,130,246,.2)] transition-all">
+    <div className="bg-[var(--surface)] border border-[rgba(255,255,255,.04)] rounded-xl px-4 py-3 group hover:border-[rgba(245,158,11,.2)] transition-all">
       <div className="flex items-center gap-3 cursor-pointer" onClick={() => setExpanded((v) => !v)}>
         {/* Avatar */}
-        <div className="w-9 h-9 rounded-full bg-[rgba(59,130,246,.15)] text-[var(--accent)] flex items-center justify-center font-bold text-[12px] flex-shrink-0">
+        <div className="w-9 h-9 rounded-full bg-[rgba(245,158,11,.15)] text-[var(--accent)] flex items-center justify-center font-bold text-[12px] flex-shrink-0">
           {i.participant.slice(0, 2).toUpperCase()}
         </div>
 
@@ -167,7 +196,7 @@ function InterviewRow({ interview: i, onEdit, onDelete }: {
             )}
             {i.pilot_ready && (
               <Badge variant="green" className="flex items-center gap-1">
-                <CheckCircle size={10} /> Pilot-ready
+                <CheckCircle size={10} /> Would use it
               </Badge>
             )}
           </div>
@@ -250,13 +279,15 @@ interface IMProps {
 }
 
 function InterviewModal({ open, initial, painQuestions, onClose, onSave, saving }: IMProps) {
-  const { register, handleSubmit, control, reset, formState: { errors } } = useForm<IForm>({
+  const { register, handleSubmit, control, reset, watch, formState: { errors } } = useForm<IForm>({
     resolver: zodResolver(interviewSchema),
     defaultValues: {
       participant: '', region: '', interviewed_at: new Date().toISOString().slice(0, 10),
       pilot_ready: false, notes: '', quotes: [], tags_raw: '', pain_scores: {},
     },
   });
+
+  const watchedScores = watch('pain_scores');
 
   const { fields: quoteFields, append: addQuote, remove: removeQuote } = useFieldArray({
     control, name: 'quotes',
@@ -286,18 +317,18 @@ function InterviewModal({ open, initial, painQuestions, onClose, onSave, saving 
     <Modal
       open={open}
       onClose={onClose}
-      title={initial ? 'Edit interview' : 'Log interview'}
+      title={initial ? 'Edit conversation' : 'Log a conversation'}
       size="lg"
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>Cancel</Button>
-          <Button variant="primary" loading={saving} onClick={handleSubmit(onSave)}>Save interview</Button>
+          <Button variant="primary" loading={saving} onClick={handleSubmit(onSave)}>Save</Button>
         </>
       }
     >
       <form className="flex flex-col gap-4" onSubmit={handleSubmit(onSave)}>
         <div className="grid grid-cols-2 gap-3">
-          <Input label="Participant name" placeholder="e.g. Ahmed D. (keep anonymous)" required
+          <Input label="Who did you talk to?" placeholder="e.g. Ahmed D. (keep anonymous)" required
             hint="First name + initial is enough — no personal data needed"
             tooltip="A short anonymous identifier for this person. You'll see this name when reviewing interviews. No full names needed."
             error={errors.participant?.message} {...register('participant')} />
@@ -319,7 +350,7 @@ function InterviewModal({ open, initial, painQuestions, onClose, onSave, saving 
             <label className="flex items-center gap-2 text-[13px] cursor-pointer py-2.5" title="Mark this person as a pilot-ready lead — someone who expressed strong interest and would likely use or pay for your solution. These are counted separately in the AI analysis.">
               <input type="checkbox" {...register('pilot_ready')} className="w-auto accent-[var(--green)]" />
               <CheckCircle size={14} className="text-[var(--green)]" />
-              Pilot-ready lead
+              Would use it (pilot-ready)
             </label>
           </div>
         </div>
@@ -336,20 +367,30 @@ function InterviewModal({ open, initial, painQuestions, onClose, onSave, saving 
                 </span>
               </span>
             </div>
-            <p className="text-[11px] text-[var(--accent2)] mb-2">⚡ These feed directly into AI signal analysis</p>
-            <div className="flex flex-col gap-2">
-              {painQuestions.map((q) => (
-                <div key={q.id} className="flex items-center gap-3">
-                  <span className="text-[12px] text-[var(--text2)] flex-1 min-w-0 truncate" title={q.label}>
-                    {q.label}
-                  </span>
-                  <input
-                    type="number" min={1} max={10}
-                    className="w-20"
-                    {...register(`pain_scores.${q.id}` as `pain_scores.${string}`, { valueAsNumber: true })}
-                  />
-                </div>
-              ))}
+            <p className="text-[11px] text-[var(--accent2)] mb-2">⚡ These scores shape your AI verdict — rate honestly</p>
+            <div className="flex flex-col gap-3">
+              {painQuestions.map((q) => {
+                const score = watchedScores?.[q.id];
+                return (
+                  <div key={q.id} className="flex flex-col gap-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[12px] text-[var(--text2)] flex-1 min-w-0 truncate" title={q.label}>{q.label}</span>
+                      <span className={`text-[13px] font-bold w-10 text-right tabular-nums flex-shrink-0 ${
+                        score >= 7 ? 'text-[var(--red)]' : score >= 5 ? 'text-[var(--yellow)]' : score ? 'text-[var(--green)]' : 'text-[var(--text3)]'
+                      }`}>{score ? `${score}/10` : '–'}</span>
+                    </div>
+                    <input
+                      type="range" min="1" max="10" step="1"
+                      className="w-full accent-[var(--accent)] h-1.5 cursor-pointer"
+                      {...register(`pain_scores.${q.id}` as `pain_scores.${string}`, { valueAsNumber: true })}
+                    />
+                    <div className="flex justify-between text-[10px] text-[var(--text3)]">
+                      <span>1 — no problem</span>
+                      <span>10 — unbearable</span>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
@@ -382,9 +423,9 @@ function InterviewModal({ open, initial, painQuestions, onClose, onSave, saving 
               </Button>
             </div>
           ))}
-          <p className="text-[11px] text-[var(--accent2)] mb-2">💬 Verbatim quotes are surfaced by AI as key evidence</p>
+          <p className="text-[11px] text-[var(--accent2)] mb-2">💬 Exact words carry more weight than your summary</p>
           {quoteFields.length === 0 && (
-            <p className="text-[11px] text-[var(--text3)]">No quotes yet — exact words from the participant are gold for AI analysis.</p>
+            <p className="text-[11px] text-[var(--text3)]">No quotes yet — even one sentence they said is incredibly useful.</p>
           )}
         </div>
 
