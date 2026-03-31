@@ -1,10 +1,8 @@
 import { ImageResponse } from '@vercel/og';
+import type { VercelRequest, VercelResponse } from '@vercel/node';
 
-export const config = { runtime: 'edge' };
-
-export default function handler(req: Request) {
-  const { searchParams } = new URL(req.url);
-  const title = searchParams.get('title') ?? "We'd love your feedback";
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  const title = (req.query.title as string | undefined) ?? "We'd love your feedback";
 
   return new ImageResponse(
     (
@@ -159,4 +157,8 @@ export default function handler(req: Request) {
     ),
     { width: 1200, height: 630 },
   );
+  const buffer = Buffer.from(await imageResponse.arrayBuffer());
+  res.setHeader('Content-Type', 'image/png');
+  res.setHeader('Cache-Control', 'public, s-maxage=3600, stale-while-revalidate=86400');
+  res.send(buffer);
 }
