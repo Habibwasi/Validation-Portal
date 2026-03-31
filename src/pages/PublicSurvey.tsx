@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { supabase } from '@/lib/supabase';
 import type { Project, Question, RegionCode } from '@/types';
-import { REGIONS } from '@/types';
+import { REGIONS, SUPPORTED_LANGUAGES } from '@/types';
 import { Button } from '@/components/ui/Button';
 import { Input, Textarea, Select } from '@/components/ui/Input';
 import { ProgressBar } from '@/components/ui/ProgressBar';
@@ -19,6 +19,7 @@ export default function PublicSurvey() {
   const [submitting, setSubmitting] = useState(false);
   const [step, setStep] = useState(0); // 0 = region, then one question per step
   const [transitioning, setTransitioning] = useState(false);
+  const [activeLang, setActiveLang] = useState('en');
 
   const { register, handleSubmit, watch, setValue } = useForm<Record<string, unknown>>({});
 
@@ -110,6 +111,18 @@ export default function PublicSurvey() {
 
   const currentQ = step === 0 ? null : questions[step - 1];
 
+  const enabledLangs = project?.settings?.enabled_languages ?? [];
+  const availableLangs = [
+    { code: 'en', label: 'English', flag: '🇬🇧' },
+    ...SUPPORTED_LANGUAGES.filter((l) => enabledLangs.includes(l.code)),
+  ];
+
+  // Helper: get translated label/options if available
+  const tLabel = (q: Question) =>
+    activeLang !== 'en' ? (q.translations?.[activeLang]?.label ?? q.label) : q.label;
+  const tOptions = (q: Question) =>
+    activeLang !== 'en' ? (q.translations?.[activeLang]?.options ?? q.options) : q.options;
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-4 py-12 bg-[radial-gradient(circle_at_30%_20%,rgba(59,130,246,.07),transparent_40%),var(--bg)]">
       <div className="w-full max-w-lg">
@@ -123,6 +136,25 @@ export default function PublicSurvey() {
           )}
           {!project?.settings?.survey_welcome && (
             <p className="text-[var(--text2)] text-[13px]">Anonymous survey — 100% confidential. No personal data collected.</p>
+          )}
+          {/* Language switcher */}
+          {availableLangs.length > 1 && (
+            <div className="flex items-center justify-center gap-1.5 mt-3 flex-wrap">
+              {availableLangs.map((l) => (
+                <button
+                  key={l.code}
+                  type="button"
+                  onClick={() => setActiveLang(l.code)}
+                  className={`px-2.5 py-1 rounded-lg border text-[11px] transition-all flex items-center gap-1 ${
+                    activeLang === l.code
+                      ? 'bg-[rgba(59,130,246,.12)] border-[var(--accent)] text-[var(--text)]'
+                      : 'bg-[var(--surface)] border-[var(--border)] text-[var(--text3)] hover:border-[var(--accent)]'
+                  }`}
+                >
+                  <span>{l.flag}</span>{l.label}
+                </button>
+              ))}
+            </div>
           )}
         </div>
 
@@ -159,12 +191,12 @@ export default function PublicSurvey() {
 
             {currentQ && step > 0 && step <= questions.length && (
               <div className="flex flex-col gap-4">
-                <h2 className="font-bold text-[15px] leading-snug">{currentQ.label}</h2>
+                <h2 className="font-bold text-[15px] leading-snug">{tLabel(currentQ)}</h2>
                 {!currentQ.required && (
                   <p className="text-[11px] text-[var(--text3)] -mt-2">Optional</p>
                 )}
 
-                <QuestionInput q={currentQ} register={register} watch={watch} setValue={setValue} />
+                <QuestionInput q={currentQ} tOptions={tOptions(currentQ)} register={register} watch={watch} setValue={setValue} />
 
                 <div className="flex justify-between mt-2">
                   <Button variant="ghost" type="button" onClick={() => setStep((s) => s - 1)}>
@@ -198,12 +230,13 @@ export default function PublicSurvey() {
 
 interface QInputProps {
   q: Question;
+  tOptions: string[] | null | undefined;
   register: ReturnType<typeof useForm<Record<string, unknown>>>['register'];
   watch: ReturnType<typeof useForm<Record<string, unknown>>>['watch'];
   setValue: ReturnType<typeof useForm<Record<string, unknown>>>['setValue'];
 }
 
-function QuestionInput({ q, register, watch, setValue }: QInputProps) {
+function QuestionInput({ q, tOptions, register, watch, setValue }: QInputProps) {
   const val = watch(q.id) as number | string | undefined;
 
   if (q.type === 'text') {
@@ -264,38 +297,44 @@ function QuestionInput({ q, register, watch, setValue }: QInputProps) {
   }
 
   if (q.type === 'choice' && q.options) {
+    const displayOptions = tOptions ?? q.options;
     return (
       <div className="flex flex-col gap-2">
-        {q.options.map((opt) => (
-          <button
-            key={opt}
-            type="button"
-            onClick={() => setValue(q.id, opt)}
-            className={`text-left px-4 py-3 rounded-xl border text-[13px] transition-all ${
-              val === opt
-                ? 'bg-[rgba(59,130,246,.1)] border-[var(--accent)] text-[var(--text)]'
-                : 'bg-[var(--bg)] border-[var(--border)] text-[var(--text2)] hover:border-[var(--accent)]'
-            }`}
-          >
-            {opt}
-          </button>
-        ))}
+        {displayOptions.map((opt, i) => {
+          const origOpt = q.options![i] ?? opt;
+          return (
+            <button
+              key={origOpt}
+              type="button"
+              onClick={() => setValue(q.id, origOpt)}
+              className={`text-left px-4 py-3 rounded-xl border text-[13px] transition-all ${
+                val === origOpt
+                  ? 'bg-[rgba(59,130,246,.1)] border-[var(--accent)] text-[var(--text)]'
+                  : 'bg-[var(--bg)] border-[var(--border)] text-[var(--text2)] hover:border-[var(--accent)]'
+              }`}
+            >
+              {opt}
+            </button>
+          );
+        })}
       </div>
     );
   }
 
   if (q.type === 'multi_choice' && q.options) {
+    const displayOptions = tOptions ?? q.options;
     const selected = (val as string[] | undefined) ?? [];
     return (
       <div className="flex flex-col gap-2">
-        {q.options.map((opt) => {
-          const isSelected = selected.includes(opt);
+        {displayOptions.map((opt, i) => {
+          const origOpt = q.options![i] ?? opt;
+          const isSelected = selected.includes(origOpt);
           return (
             <button
-              key={opt}
+              key={origOpt}
               type="button"
               onClick={() => {
-                const next = isSelected ? selected.filter((s) => s !== opt) : [...selected, opt];
+                const next = isSelected ? selected.filter((s) => s !== origOpt) : [...selected, origOpt];
                 setValue(q.id, next);
               }}
               className={`text-left px-4 py-3 rounded-xl border text-[13px] transition-all flex items-center gap-3 ${

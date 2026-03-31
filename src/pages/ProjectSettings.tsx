@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { useProjectStore } from '@/store/projectStore';
 import { supabase } from '@/lib/supabase';
 import type { ProjectSettings as PS } from '@/types';
+import { SUPPORTED_LANGUAGES } from '@/types';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Card, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -28,6 +29,7 @@ export default function ProjectSettings() {
   const { current: project, questions, loadProject } = useProjectStore();
   const [saving, setSaving] = useState(false);
   const [painIds, setPainIds] = useState<string[]>([]);
+  const [enabledLangs, setEnabledLangs] = useState<string[]>([]);
   const [syncedProjectId, setSyncedProjectId] = useState<string | null>(null);
   const [archiving, setArchiving] = useState(false);
 
@@ -40,6 +42,7 @@ export default function ProjectSettings() {
   if (project && project.id !== syncedProjectId) {
     setSyncedProjectId(project.id);
     setPainIds(project.settings?.pain_question_ids ?? []);
+    setEnabledLangs(project.settings?.enabled_languages ?? []);
     reset({
       survey_welcome: project.settings?.survey_welcome ?? '',
       survey_thankyou: project.settings?.survey_thankyou ?? '',
@@ -64,6 +67,7 @@ export default function ProjectSettings() {
     const settings: PS = {
       ...project.settings,
       pain_question_ids: painIds,
+      enabled_languages: enabledLangs.length ? enabledLangs : undefined,
       concept_question_id: data.concept_question_id || undefined,
       pilot_question_id: data.pilot_question_id || undefined,
       survey_welcome: data.survey_welcome || undefined,
@@ -203,6 +207,45 @@ export default function ProjectSettings() {
             Save Settings
           </Button>
         </div>
+
+        {/* Survey Languages */}
+        <Card accent="blue" className="p-5">
+          <CardTitle>Survey Languages</CardTitle>
+          <p className="text-[12px] text-[var(--text3)] mb-4">
+            Enable languages to let respondents take the survey in their preferred language.
+            After enabling, use <strong>Translate survey</strong> in Survey Builder to generate translations.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {SUPPORTED_LANGUAGES.map((lang) => {
+              const isOn = enabledLangs.includes(lang.code);
+              return (
+                <button
+                  key={lang.code}
+                  type="button"
+                  onClick={() =>
+                    setEnabledLangs((prev) =>
+                      isOn ? prev.filter((c) => c !== lang.code) : [...prev, lang.code]
+                    )
+                  }
+                  className={`px-3 py-1.5 rounded-lg border text-[12px] transition-all flex items-center gap-1.5 ${
+                    isOn
+                      ? 'bg-[rgba(59,130,246,.12)] border-[var(--accent)] text-[var(--text)]'
+                      : 'bg-[var(--bg)] border-[var(--border)] text-[var(--text3)] hover:border-[var(--accent)]'
+                  }`}
+                >
+                  <span>{lang.flag}</span>
+                  {lang.label}
+                  {isOn && <span className="text-[var(--accent)] font-bold ml-0.5">✓</span>}
+                </button>
+              );
+            })}
+          </div>
+          {enabledLangs.length > 0 && (
+            <p className="text-[11px] text-[var(--text3)] mt-3">
+              {enabledLangs.length} language{enabledLangs.length > 1 ? 's' : ''} enabled — remember to save, then run <strong>Translate survey</strong>.
+            </p>
+          )}
+        </Card>
 
         {/* Danger zone */}
         <Card accent="red" className="p-5">

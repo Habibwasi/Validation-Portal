@@ -30,8 +30,12 @@ create table if not exists questions (
   options       text[],
   required      boolean not null default false,
   display_order int not null default 0,
+  translations  jsonb not null default '{}',
   created_at    timestamptz not null default now()
 );
+
+-- Migration: add translations column if upgrading an existing database
+alter table questions add column if not exists translations jsonb not null default '{}';
 
 create table if not exists interviews (
   id           uuid primary key default gen_random_uuid(),

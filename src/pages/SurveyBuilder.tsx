@@ -9,7 +9,7 @@ import {
   useSortable, arrayMove,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical, Plus, Trash2, Copy, ExternalLink, ChevronDown, ChevronRight } from 'lucide-react';
+import { GripVertical, Plus, Trash2, Copy, ExternalLink, ChevronDown, ChevronRight, Wand2, Languages } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -17,7 +17,7 @@ import { supabase } from '@/lib/supabase';
 import { useProjectStore } from '@/store/projectStore';
 import type { Question, QuestionType, SurveyResponse } from '@/types';
 import { formatDate } from '@/lib/utils';
-import { REGIONS } from '@/types';
+import { REGIONS, SUPPORTED_LANGUAGES } from '@/types';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Card, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -63,10 +63,93 @@ export default function SurveyBuilder() {
   const [editTarget, setEditTarget] = useState<Question | null>(null);
   const [saving, setSaving] = useState(false);
   const [reordering, setReordering] = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const [translating, setTranslating] = useState(false);
   const [delResponse, setDelResponse] = useState<SurveyResponse | null>(null);
   const [deletingResponse, setDeletingResponse] = useState(false);
 
   useEffect(() => { setLocalQs(questions); }, [questions]);
+
+  const onGenerate = async () => {
+    if (!current?.description || !id) return;
+    setGenerating(true);
+    try {
+      const res = await fetch('/api/analyse', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt: `You are a startup validation expert. Generate 6 survey questions to validate this product concept.
+
+Product name: ${current.name}
+Description: ${current.description}
+
+Return ONLY valid JSON:
+{ "questions": [{ "type": "text|long_text|rating|scale|yes_no|choice|multi_choice", "label": "...", "required": true, "options": null }] }
+
+Available types: text, long_text, rating (pain 1-10), scale (1-10), yes_no, choice (needs options array), multi_choice (needs options array).
+Focus on: problem pain level, current alternatives, willingness to pay, concept interest, pilot readiness.`,
+        }),
+      });
+      if (!res.ok) {
+        const errText = await res.text();
+        throw new Error(`HTTP ${res.status}${errText ? `: ${errText}` : ''}`);
+      }
+      const data = await res.json() as { questions?: { type: string; label: string; required: boolean; options: string[] | null }[] };
+      const qs = data.questions;
+      if (!Array.isArray(qs) || qs.length === 0) throw new Error('No questions returned');
+      const maxOrder = localQs.reduce((m, q) => Math.max(m, q.display_order), -1);
+      await Promise.all(
+        qs.map((q, i) =>
+          supabase.from('questions').insert({
+            project_id: id,
+            type: q.type,
+            label: q.label,
+            required: q.required,
+            options: q.options?.length ? q.options : null,
+            display_order: maxOrder + 1 + i,
+          })
+        )
+      );
+      await refreshDeps(id);
+      toast.success(`${qs.length} questions generated!`);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      toast.error(`Could not generate questions: ${msg}`);
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const onTranslate = async () => {
+    const enabledLangs = current?.settings?.enabled_languages;
+    if (!enabledLangs?.length || !id) return;
+    setTranslating(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch('/api/translate-survey', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session?.access_token ?? ''}`,
+        },
+        body: JSON.stringify({ projectId: id, languages: enabledLangs }),
+      });
+      if (!res.ok) {
+        const errText = await res.text();
+        throw new Error(`HTTP ${res.status}${errText ? `: ${errText}` : ''}`);
+      }
+      await refreshDeps(id);
+      const langLabels = enabledLangs
+        .map((c) => SUPPORTED_LANGUAGES.find((l) => l.code === c)?.label ?? c)
+        .join(', ');
+      toast.success(`Survey translated into ${langLabels}!`);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      toast.error(`Translation failed: ${msg}`);
+    } finally {
+      setTranslating(false);
+    }
+  };
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -103,9 +186,34 @@ export default function SurveyBuilder() {
         title="Survey Builder"
         subtitle="Questions here become the public survey respondents fill out."
         actions={
-          <Button variant="primary" onClick={() => setAddOpen(true)}>
-            <Plus size={15} /> Add question
-          </Button>
+          <div className="flex gap-2">
+            {current?.settings?.enabled_languages?.length
+              ? (
+                <Button
+                  variant="secondary"
+                  loading={translating}
+                  onClick={onTranslate}
+                  title={`Translate into ${current.settings.enabled_languages.join(', ')}`}
+                >
+                  <Languages size={15} />
+                  {translating ? 'Translating…' : 'Translate survey'}
+                </Button>
+              ) : null
+            }
+            <Button
+              variant="secondary"
+              loading={generating}
+              disabled={!current?.description}
+              onClick={onGenerate}
+              title={!current?.description ? 'Add a project description first' : 'Generate questions using AI'}
+            >
+              <Wand2 size={15} />
+              {generating ? 'Generating…' : 'Generate with AI'}
+            </Button>
+            <Button variant="primary" onClick={() => setAddOpen(true)}>
+              <Plus size={15} /> Add question
+            </Button>
+          </div>
         }
       />
 
