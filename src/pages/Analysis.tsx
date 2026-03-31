@@ -8,7 +8,7 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
-import { EmptyState, SkeletonCard } from '@/components/ui/EmptyState';
+import { EmptyState, SkeletonAnalysis } from '@/components/ui/EmptyState';
 import toast from 'react-hot-toast';
 import { Brain, RefreshCw, AlertTriangle } from 'lucide-react';
 
@@ -115,12 +115,7 @@ export default function Analysis() {
         actions={actions}
       />
 
-      {loading && (
-        <div className="space-y-4">
-          <SkeletonCard />
-          <SkeletonCard />
-        </div>
-      )}
+      {loading && <SkeletonAnalysis />}
 
       {!loading && !result && !generating && (
         <EmptyState

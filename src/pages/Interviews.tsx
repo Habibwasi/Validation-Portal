@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/Button';
 import { Modal, ConfirmModal } from '@/components/ui/Modal';
 import { Input, Textarea, Select } from '@/components/ui/Input';
 import { Badge } from '@/components/ui/Badge';
-import { EmptyState } from '@/components/ui/EmptyState';
+import { EmptyState, SkeletonRow } from '@/components/ui/EmptyState';
 import toast from 'react-hot-toast';
 
 const interviewSchema = z.object({
@@ -31,7 +31,7 @@ type IForm = z.infer<typeof interviewSchema>;
 
 export default function Interviews() {
   const { id } = useParams<{ id: string }>();
-  const { questions, interviews, refreshDeps } = useProjectStore();
+  const { questions, interviews, loading, refreshDeps } = useProjectStore();
   const [formOpen, setFormOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<Interview | null>(null);
   const [delTarget, setDelTarget] = useState<Interview | null>(null);
@@ -110,7 +110,11 @@ export default function Interviews() {
         }
       />
 
-      {interviews.length === 0 ? (
+      {loading ? (
+        <div className="flex flex-col gap-2">
+          {[1, 2, 3].map((k) => <SkeletonRow key={k} />)}
+        </div>
+      ) : interviews.length === 0 ? (
         <EmptyState
           icon="🎙️"
           title="You haven't talked to anyone yet"

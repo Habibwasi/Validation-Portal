@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { NavLink, useParams, useNavigate, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, MessageSquare, ClipboardList, BarChart2,
-  ChevronLeft, ChevronDown, LogOut, FolderOpen, Settings
+  ChevronLeft, ChevronDown, LogOut, FolderOpen, Settings, Sun, Moon
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useProjectStore } from '@/store/projectStore';
@@ -35,12 +35,24 @@ function NavItem({ to, icon, label, end }: NavItemProps) {
   );
 }
 
+function useTheme() {
+  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
+    return (localStorage.getItem('theme') as 'dark' | 'light') ?? 'dark';
+  });
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('theme', theme);
+  }, [theme]);
+  return { theme, toggle: () => setTheme((t) => t === 'dark' ? 'light' : 'dark') };
+}
+
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { id } = useParams<{ id: string }>();
   const { current } = useProjectStore();
   const navigate = useNavigate();
   const location = useLocation();
   const [allProjects, setAllProjects] = useState<{ id: string; name: string }[]>([]);
+  const { theme, toggle: toggleTheme } = useTheme();
 
   useEffect(() => {
     if (!id) return;
@@ -125,7 +137,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </nav>
 
         {/* Footer */}
-        <div className="px-3 pb-4 border-t border-[var(--border)] pt-3">
+        <div className="px-3 pb-4 border-t border-[var(--border)] pt-3 space-y-1">
+          <button
+            onClick={toggleTheme}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] text-[var(--text2)] hover:text-[var(--text)] hover:bg-[var(--surface2)] transition-all"
+          >
+            {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
+            {theme === 'dark' ? 'Light mode' : 'Dark mode'}
+          </button>
           <button
             onClick={handleSignOut}
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] text-[var(--text2)] hover:text-[var(--red)] hover:bg-[rgba(239,68,68,.06)] transition-all"

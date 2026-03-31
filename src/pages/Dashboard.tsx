@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { MessageSquare, ClipboardList, BarChart2, TrendingUp, Target, Users } from 'lucide-react';
@@ -7,7 +7,7 @@ import { REGIONS } from '@/types';
 import { pct } from '@/lib/utils';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Card, CardTitle } from '@/components/ui/Card';
-import { StatProgress } from '@/components/ui/ProgressBar';
+import { ProgressBar, StatProgress } from '@/components/ui/ProgressBar';
 import { Badge } from '@/components/ui/Badge';
 import { EmptyState, SkeletonCard } from '@/components/ui/EmptyState';
 import { Button } from '@/components/ui/Button';
@@ -79,6 +79,35 @@ export default function Dashboard() {
           <strong className="text-[var(--text)]">Here's what to do next:</strong> Build your survey, share it with a few people, and log your first conversation. Your dashboard will come alive.
         </div>
       )}
+
+      {/* Verdict readiness progress */}
+      {total > 0 && (() => {
+        // Need: ≥5 interviews, ≥70% pain signal, ≥60% concept interest → "Strong Signal"
+        const interviewProgress = Math.min(100, pct(stats.totalInterviews, 5));
+        const painProgress = Math.min(100, stats.strongPainPct);
+        const conceptProgress = Math.min(100, stats.conceptInterestPct);
+        const overall = Math.round((interviewProgress + painProgress + conceptProgress) / 3);
+        const label =
+          overall >= 90 ? "You're very close to a confident verdict — run the AI analysis!" :
+          overall >= 60 ? "Good progress — keep gathering data to strengthen your verdict." :
+          overall >= 30 ? "Early days — more conversations will sharpen the picture." :
+          "Just getting started — each data point helps.";
+        return (
+          <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl px-5 py-4 mb-6">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[13px] font-semibold text-[var(--text)]">Verdict readiness</span>
+              <span className="text-[13px] font-bold text-[var(--accent)]">{overall}%</span>
+            </div>
+            <ProgressBar value={overall} height={6} showLabel={false} />
+            <p className="text-[11px] text-[var(--text3)] mt-2">{label}</p>
+            <div className="flex gap-4 mt-3 flex-wrap">
+              <VerdictStat label="Conversations" value={stats.totalInterviews} target={5} unit="" />
+              <VerdictStat label="Pain signal" value={Math.round(stats.strongPainPct)} target={70} unit="%" />
+              <VerdictStat label="Concept interest" value={Math.round(stats.conceptInterestPct)} target={60} unit="%" />
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Stat cards */}
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
@@ -224,7 +253,33 @@ export default function Dashboard() {
   );
 }
 
-// ── Stat Card ────────────────────────────────────────────────────────────────
+// ── Count-up hook ─────────────────────────────────────────────────────────────
+
+function useCountUp(target: number, duration = 800) {
+  const [display, setDisplay] = useState(0);
+  const raf = useRef<number | null>(null);
+  const prev = useRef(0);
+  useEffect(() => {
+    const start = prev.current;
+    const diff = target - start;
+    if (diff === 0) return;
+    const startTime = performance.now();
+    const tick = (now: number) => {
+      const elapsed = now - startTime;
+      const p = Math.min(elapsed / duration, 1);
+      // ease-out cubic
+      const eased = 1 - Math.pow(1 - p, 3);
+      setDisplay(Math.round(start + diff * eased));
+      if (p < 1) raf.current = requestAnimationFrame(tick);
+      else prev.current = target;
+    };
+    raf.current = requestAnimationFrame(tick);
+    return () => { if (raf.current) cancelAnimationFrame(raf.current); };
+  }, [target, duration]);
+  return display;
+}
+
+// ── Stat Card ─────────────────────────────────────────────────────────────────
 
 interface StatCardProps {
   label: string;
@@ -238,6 +293,7 @@ interface StatCardProps {
 }
 
 function StatCard({ label, value, target, unit, icon, accent, color, description }: StatCardProps) {
+  const displayed = useCountUp(Math.round(value));
   const progressVal = target ? pct(value, target) : value;
   return (
     <Card accent={accent}>
@@ -246,7 +302,7 @@ function StatCard({ label, value, target, unit, icon, accent, color, description
         <div className="text-[var(--text3)]">{icon}</div>
       </div>
       <div className="font-black text-[32px] leading-none mb-1">
-        {value}{unit}
+        {displayed}{unit}
       </div>
       {description && <div className="text-[11px] text-[var(--text2)]">{description}</div>}
       {target && (
@@ -256,5 +312,21 @@ function StatCard({ label, value, target, unit, icon, accent, color, description
         </>
       )}
     </Card>
+  );
+}
+
+// ── Verdict readiness sub-stat ────────────────────────────────────────────────
+
+function VerdictStat({ label, value, target, unit }: { label: string; value: number; target: number; unit: string }) {
+  const met = value >= target;
+  return (
+    <div className="flex items-center gap-1.5 text-[11px]">
+      <span className={met ? 'text-[var(--green)]' : 'text-[var(--text3)]'}>{met ? '✓' : '○'}</span>
+      <span className="text-[var(--text2)]">{label}:</span>
+      <span className={`font-semibold ${met ? 'text-[var(--green)]' : 'text-[var(--text)]'}`}>
+        {value}{unit}
+      </span>
+      <span className="text-[var(--text3)]">/ {target}{unit}</span>
+    </div>
   );
 }

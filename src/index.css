@@ -26,6 +26,27 @@
     --text3: #6b5e52;
   }
 
+  :root[data-theme="light"] {
+    --bg: #faf8f5;
+    --bg2: #f3f0eb;
+    --surface: #ffffff;
+    --surface2: #f5f2ed;
+    --border: #e5dfd6;
+
+    --accent: #d97706;
+    --accent2: #ea580c;
+    --accent3: #f59e0b;
+
+    --green: #16a34a;
+    --yellow: #ca8a04;
+    --red: #dc2626;
+    --orange: #ea580c;
+
+    --text: #1a1410;
+    --text2: #6b5e52;
+    --text3: #a8998d;
+  }
+
   * { box-sizing: border-box; -webkit-font-smoothing: antialiased; }
 
   body {
@@ -59,7 +80,7 @@
     border-color: var(--accent);
     box-shadow: 0 0 0 3px rgba(245,158,11,.15);
   }
-  select option { background: var(--surface); }
+  select option { background: var(--surface); color: var(--text); }
   textarea { resize: vertical; min-height: 80px; }
   input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
 }
