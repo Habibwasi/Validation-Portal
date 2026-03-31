@@ -99,3 +99,29 @@ body::before {
 
 #root { position: relative; z-index: 1; }
 
+@media print {
+  body::before { display: none; }
+  body { background: #fff !important; color: #111 !important; }
+
+  /* Hide everything except the analysis print area */
+  body > #root > * { display: none !important; }
+  #analysis-print-area { display: block !important; }
+
+  #analysis-print-area {
+    padding: 32px 40px;
+    font-size: 13px;
+    color: #111;
+  }
+  #analysis-print-area .no-print { display: none !important; }
+
+  /* Remove card shadows and use simple borders */
+  #analysis-print-area [class*="bg-[var"] {
+    background: #fff !important;
+    border-color: #ddd !important;
+  }
+  #analysis-print-area .border { border-color: #ddd !important; }
+  #analysis-print-area * { color: #111 !important; }
+  #analysis-print-area blockquote { border-left-color: #888 !important; }
+  @page { margin: 20mm; }
+}
+

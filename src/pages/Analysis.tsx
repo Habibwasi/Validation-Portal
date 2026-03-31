@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { EmptyState, SkeletonAnalysis } from '@/components/ui/EmptyState';
 import toast from 'react-hot-toast';
-import { Brain, RefreshCw, AlertTriangle } from 'lucide-react';
+import { Brain, RefreshCw, AlertTriangle, Download, Link2 } from 'lucide-react';
 
 const VERDICT_META: Record<string, { label: string; color: string; badgeVariant: 'green' | 'yellow' | 'red' | 'blue' }> = {
   'Strong Signal': { label: 'Strong Signal', color: 'var(--green)', badgeVariant: 'green' },
@@ -90,13 +90,33 @@ export default function Analysis() {
   const totalData = interviews.length + surveys.length;
   const verdictMeta = result ? (VERDICT_META[result.verdict] ?? VERDICT_META['Too Early']) : null;
 
+  const handleExportPDF = () => {
+    window.print();
+  };
+
+  const handleCopyLink = () => {
+    if (!project) return;
+    const url = `${window.location.origin}/a/${project.slug}`;
+    navigator.clipboard.writeText(url).then(() => toast.success('Link copied!'));
+  };
+
   const actions = (
     <div className="flex gap-2">
       {result && (
-        <Button variant="ghost" size="sm" onClick={() => generate(true)} loading={generating}>
-          <RefreshCw size={14} className="mr-1.5" />
-          Run again
-        </Button>
+        <>
+          <Button variant="ghost" size="sm" onClick={handleCopyLink}>
+            <Link2 size={14} className="mr-1.5" />
+            Share
+          </Button>
+          <Button variant="ghost" size="sm" onClick={handleExportPDF}>
+            <Download size={14} className="mr-1.5" />
+            Export PDF
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => generate(true)} loading={generating}>
+            <RefreshCw size={14} className="mr-1.5" />
+            Run again
+          </Button>
+        </>
       )}
       {!result && !loading && (
         <Button variant="primary" onClick={() => generate(false)} loading={generating} disabled={totalData === 0}>
@@ -143,7 +163,7 @@ export default function Analysis() {
       )}
 
       {result && verdictMeta && (
-        <div className="space-y-6">
+        <div id="analysis-print-area" className="space-y-6">
 
           {/* Verdict card */}
           <Card className="p-6" style={{ borderLeft: `4px solid ${verdictMeta.color}` }}>
@@ -241,7 +261,7 @@ export default function Analysis() {
             )}
           </div>
 
-          <p className="text-center text-[11px] text-[var(--text3)]">
+          <p className="text-center text-[11px] text-[var(--text3)] no-print">
             Powered by Groq AI · Based on your current data · <button className="text-[var(--accent2)] hover:underline" onClick={() => generate(true)}>Run again</button>
           </p>
         </div>

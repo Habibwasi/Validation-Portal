@@ -71,6 +71,17 @@ export default function PublicSurvey() {
 
     setSubmitting(false);
     if (error) { toast.error('Failed to submit — please try again.'); return; }
+
+    // Fire-and-forget notification (doesn't block submission)
+    fetch('/api/notify-survey', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        projectName: project.name,
+        region: REGIONS.find((r) => r.code === (data['_region'] as RegionCode))?.label ?? data['_region'],
+      }),
+    }).catch(() => { /* ignore */ });
+
     setSubmitted(true);
   };
 

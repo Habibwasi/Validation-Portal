@@ -173,3 +173,9 @@ create policy "analysis_cache: project owner all"
   with check (
     project_id in (select id from "projects" where user_id = auth.uid())
   );
+
+-- analysis_cache: anon can read (for the public shareable analysis link /a/:slug)
+drop policy if exists "analysis_cache: anon read" on "analysis_cache";
+create policy "analysis_cache: anon read"
+  on "analysis_cache" for select
+  using (true);

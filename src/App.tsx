@@ -14,6 +14,7 @@ import Interviews from '@/pages/Interviews';
 import Analysis from '@/pages/Analysis';
 import ProjectSettings from '@/pages/ProjectSettings';
 import PublicSurvey from '@/pages/PublicSurvey';
+import PublicAnalysis from '@/pages/PublicAnalysis';
 
 // ── Auth guard ───────────────────────────────────────────────────────────────
 
@@ -71,8 +72,16 @@ export default function App() {
         {/* Public routes */}
         <Route path="/" element={<Landing />} />
         <Route path="/login" element={<Login />} />
-        <Route path="/signup" element={<Signup />} />
+        <Route
+          path="/signup"
+          element={
+            import.meta.env.VITE_DISABLE_SIGNUP === 'true'
+              ? <Navigate to="/login" replace />
+              : <Signup />
+          }
+        />
         <Route path="/s/:slug" element={<PublicSurvey />} />
+        <Route path="/a/:slug" element={<PublicAnalysis />} />
 
         {/* Protected routes */}
         <Route element={<RequireAuth />}>

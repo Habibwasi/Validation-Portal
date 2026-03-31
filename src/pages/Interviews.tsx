@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { Plus, Trash2, Edit2, CheckCircle, XCircle } from 'lucide-react';
+import { Plus, Trash2, Edit2, CheckCircle, XCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -283,6 +283,7 @@ interface IMProps {
 }
 
 function InterviewModal({ open, initial, painQuestions, onClose, onSave, saving }: IMProps) {
+  const [showPrompts, setShowPrompts] = useState(false);
   const { register, handleSubmit, control, reset, watch, formState: { errors } } = useForm<IForm>({
     resolver: zodResolver(interviewSchema),
     defaultValues: {
@@ -331,6 +332,37 @@ function InterviewModal({ open, initial, painQuestions, onClose, onSave, saving 
       }
     >
       <form className="flex flex-col gap-4" onSubmit={handleSubmit(onSave)}>
+        {/* Suggested questions */}
+        <div className="border border-[var(--border)] rounded-xl overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setShowPrompts((v) => !v)}
+            className="w-full flex items-center justify-between px-4 py-2.5 bg-[var(--surface2)] text-[12px] font-semibold text-[var(--text2)] hover:text-[var(--text)] transition-colors"
+          >
+            <span>💡 Suggested questions to ask</span>
+            {showPrompts ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+          </button>
+          {showPrompts && (
+            <div className="px-4 py-3 flex flex-col gap-1.5 bg-[var(--surface)]">
+              {[
+                'Can you walk me through the last time this happened?',
+                'What do you do today to deal with this problem?',
+                'How much time / money does this cost you right now?',
+                'What's the most frustrating part of your current solution?',
+                'Have you ever tried to fix this? What stopped you?',
+                'Who else in your life has this problem?',
+                'If this problem disappeared tomorrow, what would change for you?',
+                'Would you pay for something that solved this? What would feel fair?',
+              ].map((q, i) => (
+                <div key={i} className="flex gap-2 text-[12px] text-[var(--text2)]">
+                  <span className="text-[var(--accent)] flex-shrink-0">→</span>
+                  <span>{q}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
         <div className="grid grid-cols-2 gap-3">
           <Input label="Who did you talk to?" placeholder="e.g. Ahmed D. (keep anonymous)" required
             hint="First name + initial is enough — no personal data needed"
