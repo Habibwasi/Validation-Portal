@@ -79,7 +79,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen">
       {/* Sidebar */}
-      <aside className="w-56 flex-shrink-0 flex flex-col border-r border-[var(--border)] bg-[rgba(20,16,12,.97)] backdrop-blur-xl sticky top-0 h-screen overflow-y-auto">
+      <aside className="w-56 flex-shrink-0 flex flex-col border-r border-[var(--border)] bg-[var(--bg2)] backdrop-blur-xl sticky top-0 h-screen overflow-y-auto">
         {/* Logo */}
         <div className="px-4 py-5 border-b border-[var(--border)]">
           <div className="font-black text-[15px] tracking-wider text-[var(--text)] uppercase">
