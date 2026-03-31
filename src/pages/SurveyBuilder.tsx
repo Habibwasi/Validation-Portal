@@ -78,10 +78,11 @@ export default function SurveyBuilder() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          prompt: `You are a startup validation expert. Generate 6 survey questions to validate this product concept.
+          prompt: `You are a startup validation expert. Generate 5 NEW survey questions to validate this product concept.
 
 Product name: ${current.name}
 Description: ${current.description}
+${localQs.length > 0 ? `\nExisting questions (do NOT repeat or rephrase these):\n${localQs.map((q, i) => `${i + 1}. ${q.label}`).join('\n')}\n\nGenerate questions that cover different angles not already addressed above.` : ''}
 
 Return ONLY valid JSON:
 { "questions": [{ "type": "text|long_text|rating|scale|yes_no|choice|multi_choice", "label": "...", "required": true, "options": null }] }
