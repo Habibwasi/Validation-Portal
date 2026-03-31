@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { MessageSquare, ClipboardList, BarChart2, TrendingUp, Target, Users } from 'lucide-react';
 import { useProjectStore } from '@/store/projectStore';
+import { OnboardingWizard } from '@/components/ui/OnboardingWizard';
 import { REGIONS } from '@/types';
 import { pct } from '@/lib/utils';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -15,11 +16,22 @@ import { Button } from '@/components/ui/Button';
 export default function Dashboard() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { current, interviews, surveys, loading, loadProject, getDashboardStats } = useProjectStore();
+  const location = useLocation();
+  const { current, interviews, surveys, questions, loading, loadProject, getDashboardStats } = useProjectStore();
+
+  const [showWizard, setShowWizard] = useState(false);
 
   useEffect(() => {
     if (id) loadProject(id);
   }, [id, loadProject]);
+
+  useEffect(() => {
+    if (location.state?.onboarding) {
+      setShowWizard(true);
+      // Clear the state so navigating back/forward doesn't re-trigger
+      window.history.replaceState({}, '');
+    }
+  }, [location.state]);
 
   const stats = getDashboardStats();
   const total = stats.totalInterviews + stats.totalSurveys;
@@ -61,6 +73,7 @@ export default function Dashboard() {
   const sampleQuotes = interviews.flatMap((i) => i.quotes).filter(Boolean).slice(0, 6);
 
   return (
+    <>
     <div className="p-8">
       <PageHeader
         title={current.name}
@@ -75,8 +88,61 @@ export default function Dashboard() {
       />
 
       {total === 0 && (
-        <div className="bg-[rgba(59,130,246,.06)] border border-[rgba(59,130,246,.2)] rounded-xl px-4 py-3 mb-6 text-[13px] text-[var(--text2)]">
-          <strong className="text-[var(--text)]">Here's what to do next:</strong> Build your survey, share it with a few people, and log your first conversation. Your dashboard will come alive.
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+          {[
+            {
+              icon: '📋',
+              step: '01',
+              title: 'Build your survey',
+              description: 'Add questions to measure pain, enthusiasm, and willingness to pay.',
+              cta: 'Open Survey Builder',
+              href: `/p/${id}/survey`,
+              accent: 'var(--accent)',
+            },
+            {
+              icon: '🎙️',
+              step: '02',
+              title: 'Log a conversation',
+              description: 'Record insights from customer interviews as you talk to real people.',
+              cta: 'Add Interview',
+              href: `/p/${id}/interviews`,
+              accent: 'var(--green)',
+            },
+            {
+              icon: '🤖',
+              step: '03',
+              title: 'Get your AI verdict',
+              description: 'Once you have data, your AI-powered verdict will tell you what it means.',
+              cta: 'View Analysis',
+              href: `/p/${id}/analysis`,
+              accent: 'var(--accent2)',
+              dimmed: true,
+            },
+          ].map((card) => (
+            <button
+              key={card.step}
+              onClick={() => navigate(card.href)}
+              className={`group text-left bg-[var(--surface)] border border-[var(--border)] rounded-xl p-5 hover:border-[var(--accent)] hover:shadow-[0_0_0_1px_var(--accent)] transition-all ${card.dimmed ? 'opacity-60' : ''}`}
+            >
+              <div className="flex items-start justify-between mb-3">
+                <span className="text-2xl">{card.icon}</span>
+                <span
+                  className="text-[10px] font-bold tracking-widest px-2 py-0.5 rounded-full"
+                  style={{ color: card.accent, background: `color-mix(in srgb, ${card.accent} 12%, transparent)` }}
+                >
+                  STEP {card.step}
+                </span>
+              </div>
+              <p className="text-[14px] font-semibold text-[var(--text)] mb-1">{card.title}</p>
+              <p className="text-[12px] text-[var(--text2)] leading-relaxed mb-4">{card.description}</p>
+              <span
+                className="inline-flex items-center gap-1 text-[12px] font-medium"
+                style={{ color: card.accent }}
+              >
+                {card.cta} →
+              </span>
+            </button>
+          ))}
         </div>
       )}
 
@@ -222,6 +288,18 @@ export default function Dashboard() {
         </Card>
       </div>
     </div>
+
+    {current && (
+      <OnboardingWizard
+        open={showWizard}
+        onClose={() => setShowWizard(false)}
+        projectId={current.id}
+        projectSlug={current.slug}
+        projectName={current.name}
+        hasQuestions={questions.length > 0}
+      />
+    )}
+    </>
   );
 }
 

@@ -78,7 +78,7 @@ export default function Projects() {
     setShowCreate(false);
     reset();
     toast.success("You're off to a great start!");
-    navigate(`/p/${created.id}`);
+    navigate(`/p/${created.id}`, { state: { onboarding: true } });
   };
 
   const onArchive = async (p: Project) => {
