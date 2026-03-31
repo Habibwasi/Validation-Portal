@@ -62,7 +62,12 @@ validate-portal/
 │   └── index.css               # Tailwind import + CSS variable dark theme
 ├── supabase/
 │   └── schema.sql              # 5 tables + indexes + RLS policies
-├── vercel.json                 # SPA rewrite rule for Vercel deployment
+├── api/
+│   ├── analyse.ts              # Vercel serverless function — OpenAI AI analysis
+│   └── survey-meta.ts          # Vercel serverless function — dynamic OG tags for crawlers
+├── public/
+│   └── og-preview.png          # 1200×630 preview image shown in WhatsApp/iMessage/Telegram cards
+├── vercel.json                 # SPA rewrite + bot-UA routing to survey-meta function
 ├── .env.example                # Environment variable template
 └── vite.config.ts              # Tailwind plugin + @/ path alias
 ```
@@ -124,6 +129,14 @@ validate-portal/
 - Region breakdown with progress bars
 - Quote bank from all interviews
 - Recent activity feed (interviews + surveys combined, sorted by time)
+
+### Open Graph Link Previews
+When a survey URL (`/s/:slug`) is pasted into WhatsApp, iMessage, Telegram, LinkedIn, Slack, etc., a rich preview card appears instead of a bare link.
+
+- **Static fallback** — `index.html` contains `og:title`, `og:description`, `og:image`, and `twitter:card` meta tags that work for all URLs immediately
+- **Preview image** — `public/og-preview.png` (1200×630 px) is the thumbnail shown in every chat preview
+- **Dynamic per-project tags** — `api/survey-meta.ts` detects crawler user-agents, fetches the project name from Supabase, and serves an HTML stub with project-specific OG tags; real users are transparently redirected to the SPA
+- **Bot routing** — `vercel.json` routes known crawler user-agents on `/s/:slug` to `api/survey-meta`, so humans always get the full React app
 
 ### AI Analysis
 - Reads `analysis_cache` table for existing results
@@ -209,6 +222,7 @@ npm run build
    - `VITE_APP_URL` ← set this to your Vercel URL after first deploy, then redeploy
 4. SPA client-side routing is handled by `vercel.json` (already included)
 5. AI analysis is handled by `api/analyse.ts` — a Vercel serverless function that calls OpenAI server-side
+6. Link preview cards are handled by `api/survey-meta.ts` — serves dynamic OG tags to crawlers; `vercel.json` routes bot user-agents to this function automatically. No extra config needed.
 
 ### Supabase Auth for production
 If email confirmation is enabled, go to **Supabase Dashboard → Authentication → URL Configuration** and:
