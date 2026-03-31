@@ -202,12 +202,6 @@ export default function ProjectSettings() {
           </div>
         </Card>
 
-        <div className="flex justify-end">
-          <Button variant="primary" type="submit" loading={saving}>
-            Save Settings
-          </Button>
-        </div>
-
         {/* Survey Languages */}
         <Card accent="blue" className="p-5">
           <CardTitle>Survey Languages</CardTitle>
@@ -216,6 +210,10 @@ export default function ProjectSettings() {
             After enabling, use <strong>Translate survey</strong> in Survey Builder to generate translations.
           </p>
           <div className="flex flex-wrap gap-2">
+            {/* English is always on */}
+            <span className="px-3 py-1.5 rounded-lg border text-[12px] flex items-center gap-1.5 bg-[rgba(59,130,246,.12)] border-[var(--accent)] text-[var(--text)] opacity-60 cursor-not-allowed">
+              <span>🇬🇧</span> English <Badge variant="blue" size="sm">always on</Badge>
+            </span>
             {SUPPORTED_LANGUAGES.map((lang) => {
               const isOn = enabledLangs.includes(lang.code);
               return (
@@ -246,6 +244,12 @@ export default function ProjectSettings() {
             </p>
           )}
         </Card>
+
+        <div className="flex justify-end">
+          <Button variant="primary" type="submit" loading={saving}>
+            Save Settings
+          </Button>
+        </div>
 
         {/* Danger zone */}
         <Card accent="red" className="p-5">
