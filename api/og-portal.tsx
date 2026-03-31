@@ -1,8 +1,9 @@
-import { unstable_createNodejsStream } from '@vercel/og';
-import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { ImageResponse } from '@vercel/og';
 
-export default async function handler(_req: VercelRequest, res: VercelResponse) {
-  const stream = await unstable_createNodejsStream(
+export const config = { runtime: 'edge' };
+
+export default function handler() {
+  return new ImageResponse(
     (
       <div
         style={{
@@ -167,7 +168,4 @@ export default async function handler(_req: VercelRequest, res: VercelResponse) 
     ),
     { width: 1200, height: 630 },
   );
-  res.setHeader('Content-Type', 'image/png');
-  res.setHeader('Cache-Control', 'public, s-maxage=3600, stale-while-revalidate=86400');
-  stream.pipe(res);
 }

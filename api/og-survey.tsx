@@ -1,10 +1,11 @@
-import { unstable_createNodejsStream } from '@vercel/og';
-import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { ImageResponse } from '@vercel/og';
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  const title = (req.query.title as string | undefined) ?? "We'd love your feedback";
+export const config = { runtime: 'edge' };
 
-  const stream = await unstable_createNodejsStream(
+export default function handler(req: Request) {
+  const title = new URL(req.url).searchParams.get('title') ?? "We'd love your feedback";
+
+  return new ImageResponse(
     (
       <div
         style={{
@@ -157,7 +158,4 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     ),
     { width: 1200, height: 630 },
   );
-  res.setHeader('Content-Type', 'image/png');
-  res.setHeader('Cache-Control', 'public, s-maxage=3600, stale-while-revalidate=86400');
-  stream.pipe(res);
 }
