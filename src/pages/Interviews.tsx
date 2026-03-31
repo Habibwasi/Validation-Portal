@@ -283,7 +283,7 @@ interface IMProps {
 }
 
 function InterviewModal({ open, initial, painQuestions, onClose, onSave, saving }: IMProps) {
-  const [showPrompts, setShowPrompts] = useState(false);
+  const [showPrompts, setShowPrompts] = useState(true);
   const { register, handleSubmit, control, reset, watch, formState: { errors } } = useForm<IForm>({
     resolver: zodResolver(interviewSchema),
     defaultValues: {
