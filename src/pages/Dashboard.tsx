@@ -80,35 +80,6 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Verdict readiness progress */}
-      {total > 0 && (() => {
-        // Need: ≥5 interviews, ≥70% pain signal, ≥60% concept interest → "Strong Signal"
-        const interviewProgress = Math.min(100, pct(stats.totalInterviews, 5));
-        const painProgress = Math.min(100, stats.strongPainPct);
-        const conceptProgress = Math.min(100, stats.conceptInterestPct);
-        const overall = Math.round((interviewProgress + painProgress + conceptProgress) / 3);
-        const label =
-          overall >= 90 ? "You're very close to a confident verdict — run the AI analysis!" :
-          overall >= 60 ? "Good progress — keep gathering data to strengthen your verdict." :
-          overall >= 30 ? "Early days — more conversations will sharpen the picture." :
-          "Just getting started — each data point helps.";
-        return (
-          <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl px-5 py-4 mb-6">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[13px] font-semibold text-[var(--text)]">Verdict readiness</span>
-              <span className="text-[13px] font-bold text-[var(--accent)]">{overall}%</span>
-            </div>
-            <ProgressBar value={overall} height={6} showLabel={false} />
-            <p className="text-[11px] text-[var(--text3)] mt-2">{label}</p>
-            <div className="flex gap-4 mt-3 flex-wrap">
-              <VerdictStat label="Conversations" value={stats.totalInterviews} target={5} unit="" />
-              <VerdictStat label="Pain signal" value={Math.round(stats.strongPainPct)} target={70} unit="%" />
-              <VerdictStat label="Concept interest" value={Math.round(stats.conceptInterestPct)} target={60} unit="%" />
-            </div>
-          </div>
-        );
-      })()}
-
       {/* Stat cards */}
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
         <StatCard
@@ -168,6 +139,7 @@ export default function Dashboard() {
                 <Tooltip
                   contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12 }}
                   labelStyle={{ color: 'var(--text)' }}
+                  itemStyle={{ color: 'var(--text)' }}
                   formatter={(v) => [`${(v as number).toFixed(1)}/10`, 'Avg pain']}
                 />
                 <Bar dataKey="avg" radius={4} maxBarSize={18}>
