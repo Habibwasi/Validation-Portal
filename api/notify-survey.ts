@@ -12,8 +12,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const supabaseUrl = process.env.VITE_SUPABASE_URL;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-  // Silently succeed if not configured ΓÇö notifications are optional
+  // Log what's missing so it shows in Vercel function logs
   if (!apiKey || !supabaseUrl || !serviceRoleKey) {
+    console.error('notify-survey: missing env vars', {
+      hasResendKey: !!apiKey,
+      hasSupabaseUrl: !!supabaseUrl,
+      hasServiceRoleKey: !!serviceRoleKey,
+    });
     return res.status(200).json({ ok: true, skipped: true });
   }
 
@@ -67,8 +72,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   });
 
   if (!emailRes.ok) {
-    // Don't fail the survey submission ΓÇö just log
-    console.error('Resend error:', await emailRes.text());
+    const errText = await emailRes.text();
+    console.error('notify-survey: Resend error', errText);
     return res.status(200).json({ ok: true, emailFailed: true });
   }
 
