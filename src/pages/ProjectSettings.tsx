@@ -30,6 +30,7 @@ export default function ProjectSettings() {
   const [saving, setSaving] = useState(false);
   const [painIds, setPainIds] = useState<string[]>([]);
   const [enabledLangs, setEnabledLangs] = useState<string[]>([]);
+  const [translating, setTranslating] = useState(false);
   const [syncedProjectId, setSyncedProjectId] = useState<string | null>(null);
   const [archiving, setArchiving] = useState(false);
 
@@ -83,6 +84,30 @@ export default function ProjectSettings() {
     if (error) { toast.error('Failed to save settings'); return; }
     toast.success('Settings saved');
     if (id) loadProject(id);
+  };
+
+  const generateTranslations = async () => {
+    if (!project) return;
+    if (enabledLangs.length === 0) { toast.error('Enable at least one language first.'); return; }
+    setTranslating(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const resp = await fetch('/api/translate-survey', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+        },
+        body: JSON.stringify({ projectId: project.id, languages: enabledLangs }),
+      });
+      const json = await resp.json() as { translatedCount?: number; error?: string };
+      if (!resp.ok) { toast.error(json.error ?? 'Translation failed'); return; }
+      toast.success(`Translated ${json.translatedCount ?? 0} question(s) into ${enabledLangs.length} language(s)`);
+    } catch {
+      toast.error('Network error — translation failed');
+    } finally {
+      setTranslating(false);
+    }
   };
 
   const archiveProject = async () => {
@@ -243,6 +268,21 @@ export default function ProjectSettings() {
               {enabledLangs.length} language{enabledLangs.length > 1 ? 's' : ''} enabled — remember to save, then run <strong>Translate survey</strong>.
             </p>
           )}
+          <div className="mt-4 flex items-center gap-3">
+            <Button
+              variant="secondary"
+              type="button"
+              size="sm"
+              loading={translating}
+              disabled={enabledLangs.length === 0}
+              onClick={generateTranslations}
+            >
+              ✦ Generate Translations
+            </Button>
+            <p className="text-[11px] text-[var(--text3)]">
+              Translations are saved per-question and used automatically on the survey. Re-run after adding new questions.
+            </p>
+          </div>
         </Card>
 
         <div className="flex justify-end">
