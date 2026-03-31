@@ -7,7 +7,7 @@ import { REGIONS } from '@/types';
 import { pct } from '@/lib/utils';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Card, CardTitle } from '@/components/ui/Card';
-import { ProgressBar, StatProgress } from '@/components/ui/ProgressBar';
+import { StatProgress } from '@/components/ui/ProgressBar';
 import { Badge } from '@/components/ui/Badge';
 import { EmptyState, SkeletonCard } from '@/components/ui/EmptyState';
 import { Button } from '@/components/ui/Button';
@@ -287,18 +287,3 @@ function StatCard({ label, value, target, unit, icon, accent, color, description
   );
 }
 
-// ── Verdict readiness sub-stat ────────────────────────────────────────────────
-
-function VerdictStat({ label, value, target, unit }: { label: string; value: number; target: number; unit: string }) {
-  const met = value >= target;
-  return (
-    <div className="flex items-center gap-1.5 text-[11px]">
-      <span className={met ? 'text-[var(--green)]' : 'text-[var(--text3)]'}>{met ? '✓' : '○'}</span>
-      <span className="text-[var(--text2)]">{label}:</span>
-      <span className={`font-semibold ${met ? 'text-[var(--green)]' : 'text-[var(--text)]'}`}>
-        {value}{unit}
-      </span>
-      <span className="text-[var(--text3)]">/ {target}{unit}</span>
-    </div>
-  );
-}
