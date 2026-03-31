@@ -52,7 +52,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const baseUrl = 'https://validation-portal.vercel.app';
 
-  const imageUrl  = `${baseUrl}/og-preview.png`;
+  const imageUrl  = `${baseUrl}/api/og-survey?title=${encodeURIComponent(title)}`;
   const pageUrl   = `${baseUrl}/s/${slug}`;
   const safeTitle = escapeHtml(title);
   const safeDesc  = escapeHtml(description);
