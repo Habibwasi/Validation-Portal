@@ -6,7 +6,7 @@
         {
           "type": "header",
           "key": "user-agent",
-          "value": "(?i).*(facebookexternalhit|whatsapp|twitterbot|linkedinbot|slackbot|telegrambot|discordbot|googlebot|baiduspider|applebot).*"
+          "value": ".*(facebookexternalhit|whatsapp|twitterbot|linkedinbot|slackbot|telegrambot|discordbot|googlebot|baiduspider|applebot).*"
         }
       ],
       "destination": "/api/survey-meta?slug=:slug"
