@@ -16,7 +16,7 @@ A general-purpose startup validation research tool. Create projects, build publi
 | Forms | React Hook Form + Zod |
 | Charts | Recharts |
 | Drag & Drop | @dnd-kit/core + sortable |
-| AI Analysis | OpenAI gpt-4o-mini |
+| AI Analysis | Google Gemini 1.5 Flash (via REST) |
 | Notifications | react-hot-toast |
 | Icons | lucide-react |
 
@@ -31,7 +31,7 @@ validate-portal/
 │   │   └── index.ts            # All TypeScript interfaces (Project, Question, Interview, etc.)
 │   ├── lib/
 │   │   ├── supabase.ts         # Supabase client singleton
-│   │   ├── ai.ts               # OpenAI wrapper — builds prompt, returns AnalysisResult JSON
+│   │   ├── ai.ts               # Gemini wrapper — builds prompt, returns AnalysisResult JSON
 │   │   └── utils.ts            # cn(), slugify(), uniqueSlug(), formatDate(), pct(), avg()
 │   ├── store/
 │   │   └── projectStore.ts     # Zustand store — project + questions + interviews + surveys + stats
@@ -63,7 +63,8 @@ validate-portal/
 ├── supabase/
 │   └── schema.sql              # 5 tables + indexes + RLS policies
 ├── api/
-│   ├── analyse.ts              # Vercel serverless function — OpenAI AI analysis
+│   ├── analyse.ts              # Vercel serverless function — Gemini AI analysis
+│   ├── translate-survey.ts     # Vercel serverless function — Gemini multi-language translation
 │   └── survey-meta.ts          # Vercel serverless function — dynamic OG tags for crawlers
 ├── public/
 │   └── og-preview.png          # 1200×630 preview image shown in WhatsApp/iMessage/Telegram cards
@@ -107,6 +108,8 @@ validate-portal/
 
 ### Public Survey (`/s/:slug`)
 - Fully unauthenticated — no login required for respondents
+- **Language picker step** — respondents choose their preferred language before the survey starts (auto-skipped if only English is enabled)
+- Supported languages: English 🇬🇧, Arabic 🇸🇦, Bengali 🇧🇩, French 🇫🇷, Spanish 🇪🇸, Turkish 🇹🇷, Hindi 🇮🇳, Danish 🇩🇰, German 🇩🇪
 - Step-by-step one-question-per-screen UX with progress bar
 - Back/Next navigation with phantom-submit protection (transitioning guard)
 - Custom welcome and thank-you messages (set in Project Settings)
@@ -140,13 +143,15 @@ When a survey URL (`/s/:slug`) is pasted into WhatsApp, iMessage, Telegram, Link
 
 ### AI Analysis
 - Reads `analysis_cache` table for existing results
-- "Generate Insights" sends aggregated stats + sample quotes to a **Vercel serverless function** (`api/analyse.ts`) which calls OpenAI gpt-4o-mini server-side — the API key never reaches the browser
+- "Generate Insights" sends aggregated stats + sample quotes to a **Vercel serverless function** (`api/analyse.ts`) which calls **Google Gemini 1.5 Flash** server-side — the API key never reaches the browser
 - Displays: verdict badge, summary, themes with strength, key quotes, numbered next steps, warnings
 - "Regenerate" clears cache and re-runs
 
 ### Project Settings
 - Map which survey questions feed each validation metric (pain, concept interest, pilot ready)
 - Customise survey welcome and thank-you text
+- **Survey Languages** — toggle which languages to enable for the public survey
+- **Generate Translations** — one-click AI translation of all question labels and options into every enabled language (powered by Gemini via `api/translate-survey.ts`); translations are stored in the `questions.translations` JSONB column
 - Archive project (data preserved)
 
 ---
@@ -155,7 +160,7 @@ When a survey URL (`/s/:slug`) is pasted into WhatsApp, iMessage, Telegram, Link
 
 ```
 projects          — id, user_id, name, slug, description, archived, target_*, settings (JSONB)
-questions         — id, project_id, type, label, options[], required, display_order
+questions         — id, project_id, type, label, options[], required, display_order, translations (JSONB)
 interviews        — id, project_id, user_id, participant, region, pain_scores (JSONB), quotes[], tags[], notes, pilot_ready, interviewed_at
 survey_responses  — id, project_id, answers (JSONB), region, submitted_at
 analysis_cache    — id, project_id, result (JSONB), created_at
@@ -191,7 +196,7 @@ Fill in your values:
 ```env
 VITE_SUPABASE_URL=https://your-project-ref.supabase.co
 VITE_SUPABASE_ANON_KEY=your-anon-key
-OPENAI_API_KEY=sk-...             # server-side only — do NOT use VITE_ prefix
+GOOGLE_GENERATIVE_AI_KEY=...      # server-side only — get free key at aistudio.google.com/apikeys
 VITE_APP_URL=https://your-app.vercel.app  # optional — used for shareable survey links
 ```
 
@@ -218,11 +223,12 @@ npm run build
 3. Add environment variables in the Vercel dashboard before deploying:
    - `VITE_SUPABASE_URL`
    - `VITE_SUPABASE_ANON_KEY`
-   - `OPENAI_API_KEY` ← **no `VITE_` prefix** — kept server-side only, never in the bundle
+   - `GOOGLE_GENERATIVE_AI_KEY` ← **no `VITE_` prefix** — kept server-side only, never in the bundle. Get a free key at [aistudio.google.com/apikeys](https://aistudio.google.com/apikeys) (no credit card required, 1500 req/day free)
    - `VITE_APP_URL` ← set this to your Vercel URL after first deploy, then redeploy
 4. SPA client-side routing is handled by `vercel.json` (already included)
-5. AI analysis is handled by `api/analyse.ts` — a Vercel serverless function that calls OpenAI server-side
-6. Link preview cards are handled by `api/survey-meta.ts` — serves dynamic OG tags to crawlers; `vercel.json` routes bot user-agents to this function automatically. No extra config needed.
+5. AI analysis is handled by `api/analyse.ts` — a Vercel serverless function that calls **Google Gemini 1.5 Flash** server-side
+6. Survey translation is handled by `api/translate-survey.ts` — translates all questions into enabled languages via Gemini and saves to the DB
+7. Link preview cards are handled by `api/survey-meta.ts` — serves dynamic OG tags to crawlers; `vercel.json` routes bot user-agents to this function automatically. No extra config needed.
 
 ### Supabase Auth for production
 If email confirmation is enabled, go to **Supabase Dashboard → Authentication → URL Configuration** and:
