@@ -99,9 +99,13 @@ export default function ProjectSettings() {
     if (langs.length === 0) { toast.error('Enable at least one language besides English.'); return; }
     setTranslating(true);
     try {
+      const { data: { session } } = await supabase.auth.getSession();
       const resp = await fetch('/api/translate-survey', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+        },
         body: JSON.stringify({ project_id: project.id, languages: langs }),
       });
       const json = await resp.json() as { translated?: number; error?: string };
