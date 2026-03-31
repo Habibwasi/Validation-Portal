@@ -301,7 +301,7 @@ function StatCard({ label, value, target, unit, icon, accent, color, description
         <div className="text-[10px] text-[var(--text3)] uppercase tracking-wider">{label}</div>
         <div className="text-[var(--text3)]">{icon}</div>
       </div>
-      <div className="font-black text-[32px] leading-none mb-1">
+      <div className="font-black text-[32px] leading-none mb-1 text-[var(--text)]">
         {displayed}{unit}
       </div>
       {description && <div className="text-[11px] text-[var(--text2)]">{description}</div>}
