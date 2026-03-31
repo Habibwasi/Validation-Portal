@@ -1,4 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { createClient } from '@supabase/supabase-js';
 
 export const maxDuration = 10;
 
@@ -8,15 +9,32 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const apiKey = process.env.RESEND_API_KEY;
+  const supabaseUrl = process.env.VITE_SUPABASE_URL;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   // Silently succeed if not configured — notifications are optional
-  if (!apiKey) {
+  if (!apiKey || !supabaseUrl || !serviceRoleKey) {
     return res.status(200).json({ ok: true, skipped: true });
   }
 
-  const { projectName, region, notifyEmail } = req.body as { projectName?: string; region?: string; notifyEmail?: string };
+  const { projectId, projectName, region } = req.body as { projectId?: string; projectName?: string; region?: string };
 
-  if (!notifyEmail) {
+  if (!projectId) {
+    return res.status(200).json({ ok: true, skipped: true });
+  }
+
+  // Look up project owner's email using service role key
+  const admin = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } });
+
+  const { data: project } = await admin.from('projects').select('user_id').eq('id', projectId).single();
+  if (!project?.user_id) {
+    return res.status(200).json({ ok: true, skipped: true });
+  }
+
+  const { data: { user } } = await admin.auth.admin.getUserById(project.user_id);
+  const ownerEmail = user?.email;
+
+  if (!ownerEmail) {
     return res.status(200).json({ ok: true, skipped: true });
   }
 
@@ -28,7 +46,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     },
     body: JSON.stringify({
       from: 'Validate Portal <onboarding@resend.dev>',
-      to: [notifyEmail],
+      to: [ownerEmail],
       subject: `New survey response — ${projectName ?? 'your project'}`,
       html: `
         <div style="font-family:sans-serif;max-width:480px;margin:auto;padding:24px">

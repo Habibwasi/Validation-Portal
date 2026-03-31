@@ -19,7 +19,6 @@ export interface Project {
 export interface ProjectSettings {
   survey_welcome?: string;
   survey_thankyou?: string;
-  notify_email?: string;        // email address to notify on new survey response
   pain_question_ids?: string[]; // question IDs treated as "pain" metrics
   concept_question_id?: string; // question ID used for concept interest %
   pilot_question_id?: string;   // question ID used for pilot-ready count
