@@ -61,25 +61,44 @@ export default function SurveyBuilder() {
   const [localQs, setLocalQs] = useState<Question[]>([]);
   const [addOpen, setAddOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<Question | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [reordering, setReordering] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [translating, setTranslating] = useState(false);
   const [delResponse, setDelResponse] = useState<SurveyResponse | null>(null);
   const [deletingResponse, setDeletingResponse] = useState(false);
   const [saveAll, setSaveAll] = useState(false);
+  const [isDirty, setIsDirty] = useState(false);
 
-  useEffect(() => { setLocalQs(questions); }, [questions]);
+  useEffect(() => {
+    if (!isDirty) setLocalQs(questions);
+  }, [questions]);
 
   const onSave = async () => {
-    if (!id || localQs.length === 0) return;
+    if (!id) return;
     setSaveAll(true);
     try {
-      await Promise.all(
-        localQs.map((q) =>
-          supabase.from('questions').update({ display_order: q.display_order }).eq('id', q.id)
-        )
-      );
+      const originalIds = new Set(questions.map((q) => q.id));
+      const localIds = new Set(localQs.map((q) => q.id));
+
+      // Delete removed questions (real IDs only)
+      const toDelete = questions.filter((q) => !localIds.has(q.id));
+      await Promise.all(toDelete.map((q) => supabase.from('questions').delete().eq('id', q.id)));
+
+      // Insert new questions (temp IDs not in original set)
+      const toInsert = localQs.filter((q) => !originalIds.has(q.id));
+      await Promise.all(toInsert.map((q) => supabase.from('questions').insert({
+        project_id: id, type: q.type, label: q.label,
+        required: q.required, options: q.options, display_order: q.display_order,
+      })));
+
+      // Update existing questions
+      const toUpdate = localQs.filter((q) => originalIds.has(q.id));
+      await Promise.all(toUpdate.map((q) => supabase.from('questions').update({
+        type: q.type, label: q.label, required: q.required,
+        options: q.options, display_order: q.display_order,
+      }).eq('id', q.id)));
+
+      await refreshDeps(id);
+      setIsDirty(false);
       toast.success('Survey saved!');
     } catch {
       toast.error('Failed to save');
@@ -175,25 +194,16 @@ Focus on: problem pain level, current alternatives, willingness to pay, concept 
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 
-  const onDragEnd = async (event: DragEndEvent) => {
+  const onDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
-
     const oldIndex = localQs.findIndex((q) => q.id === active.id);
     const newIndex = localQs.findIndex((q) => q.id === over.id);
     const reordered = arrayMove(localQs, oldIndex, newIndex).map((q, i) => ({
       ...q, display_order: i,
     }));
     setLocalQs(reordered);
-    setReordering(true);
-
-    // Persist new order
-    await Promise.all(
-      reordered.map((q) =>
-        supabase.from('questions').update({ display_order: q.display_order }).eq('id', q.id),
-      ),
-    );
-    setReordering(false);
+    setIsDirty(true);
   };
 
   const appBase = (import.meta.env.VITE_APP_URL as string | undefined)?.replace(/\/$/, '') ?? window.location.origin;
@@ -229,7 +239,7 @@ Focus on: problem pain level, current alternatives, willingness to pay, concept 
               <Wand2 size={15} />
               {generating ? 'Generating…' : 'Generate with AI'}
             </Button>
-            <Button variant="secondary" loading={saveAll} onClick={onSave}>
+            <Button variant={isDirty ? 'primary' : 'secondary'} loading={saveAll} onClick={onSave}>
               <Save size={15} /> Save
             </Button>
             <Button variant="primary" onClick={() => setAddOpen(true)}>
@@ -280,7 +290,7 @@ Focus on: problem pain level, current alternatives, willingness to pay, concept 
         <div className="mb-4 flex items-center justify-between">
           <p className="text-[12px] text-[var(--text3)]">
             {localQs.length} question{localQs.length !== 1 ? 's' : ''} — drag to reorder
-            {reordering && <span className="ml-2 text-[var(--accent)]">Saving…</span>}
+            {isDirty && <span className="ml-2 text-amber-400">Unsaved changes</span>}
           </p>
         </div>
       )}
@@ -294,10 +304,9 @@ Focus on: problem pain level, current alternatives, willingness to pay, concept 
                 question={q}
                 index={i}
                 onEdit={() => setEditTarget(q)}
-                onDelete={async () => {
-                  await supabase.from('questions').delete().eq('id', q.id);
-                  await refreshDeps(id!);
-                  toast.success('Question removed');
+                onDelete={() => {
+                  setLocalQs((prev) => prev.filter((r) => r.id !== q.id));
+                  setIsDirty(true);
                 }}
               />
             ))}
@@ -311,35 +320,37 @@ Focus on: problem pain level, current alternatives, willingness to pay, concept 
         initial={editTarget}
         onClose={() => { setAddOpen(false); setEditTarget(null); }}
         onSave={async (data) => {
-          setSaving(true);
           const opts = data.options
             ? data.options.split(',').map((s) => s.trim()).filter(Boolean)
             : null;
 
           if (editTarget) {
-            await supabase.from('questions').update({
-              type: data.type, label: data.label,
-              required: data.required, options: opts,
-            }).eq('id', editTarget.id);
+            setLocalQs((prev) => prev.map((q) => q.id === editTarget.id
+              ? { ...q, type: data.type as QuestionType, label: data.label, required: data.required, options: opts }
+              : q
+            ));
           } else {
             const maxOrder = localQs.reduce((m, q) => Math.max(m, q.display_order), -1);
-            await supabase.from('questions').insert({
-              project_id: id,
-              type: data.type,
+            const tempQ: Question = {
+              id: `temp-${Date.now()}`,
+              project_id: id!,
+              type: data.type as QuestionType,
               label: data.label,
               required: data.required,
               options: opts,
               display_order: maxOrder + 1,
-            });
+              translations: null,
+              created_at: new Date().toISOString(),
+            };
+            setLocalQs((prev) => [...prev, tempQ]);
           }
 
-          await refreshDeps(id!);
-          setSaving(false);
+          setIsDirty(true);
           setAddOpen(false);
           setEditTarget(null);
-          toast.success(editTarget ? 'Question updated' : 'Question added');
+          toast.success(editTarget ? 'Question updated' : 'Question added — press Save to apply');
         }}
-        saving={saving}
+        saving={false}
       />
 
       {/* ── Survey Responses ── */}
