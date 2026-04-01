@@ -136,20 +136,20 @@ Focus on: problem pain level, current alternatives, willingness to pay, concept 
       const qs = data.questions;
       if (!Array.isArray(qs) || qs.length === 0) throw new Error('No questions returned');
       const maxOrder = localQs.reduce((m, q) => Math.max(m, q.display_order), -1);
-      await Promise.all(
-        qs.map((q, i) =>
-          supabase.from('questions').insert({
-            project_id: id,
-            type: q.type,
-            label: q.label,
-            required: q.required,
-            options: q.options?.length ? q.options : null,
-            display_order: maxOrder + 1 + i,
-          })
-        )
-      );
-      await refreshDeps(id);
-      toast.success(`${qs.length} questions generated!`);
+      const newQs: Question[] = qs.map((q, i) => ({
+        id: `temp-${Date.now()}-${i}`,
+        project_id: id!,
+        type: q.type as QuestionType,
+        label: q.label,
+        required: q.required,
+        options: q.options?.length ? q.options : null,
+        display_order: maxOrder + 1 + i,
+        translations: null,
+        created_at: new Date().toISOString(),
+      }));
+      setLocalQs((prev) => [...prev, ...newQs]);
+      setIsDirty(true);
+      toast.success(`${qs.length} questions generated — press Save to apply`);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       toast.error(`Could not generate questions: ${msg}`);
