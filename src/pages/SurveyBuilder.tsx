@@ -9,7 +9,7 @@ import {
   useSortable, arrayMove,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical, Plus, Trash2, Copy, ExternalLink, ChevronDown, ChevronRight, Wand2, Languages } from 'lucide-react';
+import { GripVertical, Plus, Trash2, Copy, ExternalLink, ChevronDown, ChevronRight, Wand2, Languages, Save } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -67,8 +67,26 @@ export default function SurveyBuilder() {
   const [translating, setTranslating] = useState(false);
   const [delResponse, setDelResponse] = useState<SurveyResponse | null>(null);
   const [deletingResponse, setDeletingResponse] = useState(false);
+  const [saveAll, setSaveAll] = useState(false);
 
   useEffect(() => { setLocalQs(questions); }, [questions]);
+
+  const onSave = async () => {
+    if (!id || localQs.length === 0) return;
+    setSaveAll(true);
+    try {
+      await Promise.all(
+        localQs.map((q) =>
+          supabase.from('questions').update({ display_order: q.display_order }).eq('id', q.id)
+        )
+      );
+      toast.success('Survey saved!');
+    } catch {
+      toast.error('Failed to save');
+    } finally {
+      setSaveAll(false);
+    }
+  };
 
   const onGenerate = async () => {
     if (!current?.description || !id) return;
@@ -210,6 +228,9 @@ Focus on: problem pain level, current alternatives, willingness to pay, concept 
             >
               <Wand2 size={15} />
               {generating ? 'Generating…' : 'Generate with AI'}
+            </Button>
+            <Button variant="secondary" loading={saveAll} onClick={onSave}>
+              <Save size={15} /> Save
             </Button>
             <Button variant="primary" onClick={() => setAddOpen(true)}>
               <Plus size={15} /> Add question
