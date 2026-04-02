@@ -9,7 +9,7 @@ import {
   useSortable, arrayMove,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical, Plus, Trash2, Copy, ExternalLink, ChevronDown, ChevronRight, Wand2, Languages, Save } from 'lucide-react';
+import { GripVertical, Plus, Trash2, Copy, ExternalLink, ChevronDown, ChevronRight, Wand2, Save } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -17,7 +17,7 @@ import { supabase } from '@/lib/supabase';
 import { useProjectStore } from '@/store/projectStore';
 import type { Question, QuestionType, SurveyResponse } from '@/types';
 import { formatDate } from '@/lib/utils';
-import { REGIONS, SUPPORTED_LANGUAGES } from '@/types';
+import { REGIONS } from '@/types';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Card, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -62,7 +62,6 @@ export default function SurveyBuilder() {
   const [addOpen, setAddOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<Question | null>(null);
   const [generating, setGenerating] = useState(false);
-  const [translating, setTranslating] = useState(false);
   const [delResponse, setDelResponse] = useState<SurveyResponse | null>(null);
   const [deletingResponse, setDeletingResponse] = useState(false);
   const [saveAll, setSaveAll] = useState(false);
@@ -158,37 +157,6 @@ Focus on: problem pain level, current alternatives, willingness to pay, concept 
     }
   };
 
-  const onTranslate = async () => {
-    const enabledLangs = current?.settings?.enabled_languages;
-    if (!enabledLangs?.length || !id) return;
-    setTranslating(true);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const res = await fetch('/api/translate-survey', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${session?.access_token ?? ''}`,
-        },
-        body: JSON.stringify({ projectId: id, languages: enabledLangs }),
-      });
-      if (!res.ok) {
-        const errText = await res.text();
-        throw new Error(`HTTP ${res.status}${errText ? `: ${errText}` : ''}`);
-      }
-      await refreshDeps(id);
-      const langLabels = enabledLangs
-        .map((c) => SUPPORTED_LANGUAGES.find((l) => l.code === c)?.label ?? c)
-        .join(', ');
-      toast.success(`Survey translated into ${langLabels}!`);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      toast.error(`Translation failed: ${msg}`);
-    } finally {
-      setTranslating(false);
-    }
-  };
-
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
@@ -216,19 +184,6 @@ Focus on: problem pain level, current alternatives, willingness to pay, concept 
         subtitle="Questions here become the public survey respondents fill out."
         actions={
           <div className="flex gap-2">
-            {current?.settings?.enabled_languages?.length
-              ? (
-                <Button
-                  variant="secondary"
-                  loading={translating}
-                  onClick={onTranslate}
-                  title={`Translate into ${current.settings.enabled_languages.join(', ')}`}
-                >
-                  <Languages size={15} />
-                  {translating ? 'Translating…' : 'Translate survey'}
-                </Button>
-              ) : null
-            }
             <Button
               variant="secondary"
               loading={generating}
