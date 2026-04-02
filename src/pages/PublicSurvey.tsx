@@ -2,10 +2,10 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { supabase } from '@/lib/supabase';
-import type { Project, Question, RegionCode } from '@/types';
-import { REGIONS, SUPPORTED_LANGUAGES } from '@/types';
+import type { Project, Question } from '@/types';
+import { SUPPORTED_LANGUAGES } from '@/types';
 import { Button } from '@/components/ui/Button';
-import { Input, Textarea, Select } from '@/components/ui/Input';
+import { Input, Textarea } from '@/components/ui/Input';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import toast from 'react-hot-toast';
 
@@ -17,7 +17,7 @@ export default function PublicSurvey() {
   const [notFound, setNotFound] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [step, setStep] = useState(0); // 0 = region, then one question per step
+  const [step, setStep] = useState(0); // 0-indexed into questions
   const [transitioning, setTransitioning] = useState(false);
   const [activeLang, setActiveLang] = useState('en');
 
@@ -51,8 +51,8 @@ export default function PublicSurvey() {
     })();
   }, [slug]);
 
-  const totalSteps = questions.length + 1; // +1 for region
-  const progress = Math.round((step / totalSteps) * 100);
+  const totalSteps = questions.length;
+  const progress = Math.round((step / Math.max(totalSteps, 1)) * 100);
 
   const onSubmit = async (data: Record<string, unknown>) => {
     if (!project || transitioning) return;
@@ -66,7 +66,7 @@ export default function PublicSurvey() {
     const { error } = await supabase.from('survey_responses').insert({
       project_id: project.id,
       answers,
-      region: (data['_region'] as RegionCode) ?? null,
+      region: null,
     });
 
     setSubmitting(false);
@@ -79,7 +79,6 @@ export default function PublicSurvey() {
       body: JSON.stringify({
         projectId: project.id,
         projectName: project.name,
-        region: REGIONS.find((r) => r.code === (data['_region'] as RegionCode))?.label ?? data['_region'],
       }),
     }).catch(() => { /* ignore */ });
 
@@ -121,7 +120,7 @@ export default function PublicSurvey() {
     );
   }
 
-  const currentQ = step === 0 ? null : questions[step - 1];
+  const currentQ = questions[step];
 
   const enabledLangs = project?.settings?.enabled_languages ?? [];
   const availableLangs = [
@@ -173,7 +172,7 @@ export default function PublicSurvey() {
         {/* Progress */}
         <div className="mb-6">
           <div className="flex justify-between text-[11px] text-[var(--text3)] mb-1.5">
-            <span>Question {Math.min(step + 1, totalSteps)} of {totalSteps}</span>
+            <span>Question {step + 1} of {totalSteps}</span>
             <span>{progress}%</span>
           </div>
           <ProgressBar value={progress} height={5} />
@@ -183,25 +182,7 @@ export default function PublicSurvey() {
         <div className="bg-[var(--surface)] border border-[rgba(255,255,255,.04)] rounded-2xl p-6 shadow-[0_24px_60px_rgba(0,0,0,.3)]">
           <form onSubmit={handleSubmit(onSubmit)}>
 
-            {step === 0 && (
-              <div className="flex flex-col gap-4">
-                <h2 className="font-bold text-[16px]">Where are you based?</h2>
-                <Select
-                  label="Your current country / region"
-                  required
-                  placeholder="Select…"
-                  options={REGIONS.map((r) => ({ value: r.code, label: `${r.flag} ${r.label}` }))}
-                  {...register('_region')}
-                />
-                <div className="flex justify-end mt-2">
-                  <Button variant="primary" type="button" onClick={goNext}>
-                    Next →
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            {currentQ && step > 0 && step <= questions.length && (
+            {currentQ && (
               <div className="flex flex-col gap-4">
                 <h2 className="font-bold text-[15px] leading-snug">{tLabel(currentQ)}</h2>
                 {!currentQ.required && (
@@ -211,10 +192,12 @@ export default function PublicSurvey() {
                 <QuestionInput q={currentQ} tOptions={tOptions(currentQ)} register={register} watch={watch} setValue={setValue} />
 
                 <div className="flex justify-between mt-2">
-                  <Button variant="ghost" type="button" onClick={() => setStep((s) => s - 1)}>
-                    ← Back
-                  </Button>
-                  {step < questions.length ? (
+                  {step > 0 ? (
+                    <Button variant="ghost" type="button" onClick={() => setStep((s) => s - 1)}>
+                      ← Back
+                    </Button>
+                  ) : <div />}
+                  {step < questions.length - 1 ? (
                     <Button variant="primary" type="button" onClick={goNext}>
                       Next →
                     </Button>
