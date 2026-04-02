@@ -17,10 +17,9 @@ export default function PublicSurvey() {
   const [notFound, setNotFound] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  // step: -1 = language pick, 0 = region, 1..N = questions
-  const [step, setStep] = useState(-1);
+  const [step, setStep] = useState(0); // 0 = region, then one question per step
   const [transitioning, setTransitioning] = useState(false);
-  const [lang, setLang] = useState('en');
+  const [activeLang, setActiveLang] = useState('en');
 
   const { register, handleSubmit, watch, setValue } = useForm<Record<string, unknown>>({});
 
@@ -49,25 +48,11 @@ export default function PublicSurvey() {
         .order('display_order');
       setQuestions(qs ?? []);
       setLoading(false);
-
-      // Skip language step if only English is enabled
-      const langs = proj.settings?.enabled_languages ?? [];
-      if (langs.length === 0) setStep(0);
     })();
   }, [slug]);
 
-  const totalSteps = questions.length + 1; // +1 for region (language step is before counting)
-  const progress = step < 0 ? 0 : Math.round((step / totalSteps) * 100);
-
-  // Languages enabled for this project (always include 'en')
-  const enabledLangs = SUPPORTED_LANGUAGES.filter((l) =>
-    ['en', ...(project?.settings?.enabled_languages ?? [])].includes(l.code)
-  );
-  const multiLang = enabledLangs.length > 1;
-
-  // Helper: get translated label/options for a question
-  const tLabel = (q: Question) => q.translations?.[lang]?.label ?? q.label;
-  const tOptions = (q: Question) => q.translations?.[lang]?.options ?? q.options;
+  const totalSteps = questions.length + 1; // +1 for region
+  const progress = Math.round((step / totalSteps) * 100);
 
   const onSubmit = async (data: Record<string, unknown>) => {
     if (!project || transitioning) return;
@@ -86,6 +71,18 @@ export default function PublicSurvey() {
 
     setSubmitting(false);
     if (error) { toast.error('Failed to submit — please try again.'); return; }
+
+    // Fire-and-forget notification (doesn't block submission)
+    fetch('/api/notify-survey', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        projectId: project.id,
+        projectName: project.name,
+        region: REGIONS.find((r) => r.code === (data['_region'] as RegionCode))?.label ?? data['_region'],
+      }),
+    }).catch(() => { /* ignore */ });
+
     setSubmitted(true);
   };
 
@@ -124,7 +121,19 @@ export default function PublicSurvey() {
     );
   }
 
-  const currentQ = step <= 0 ? null : questions[step - 1];
+  const currentQ = step === 0 ? null : questions[step - 1];
+
+  const enabledLangs = project?.settings?.enabled_languages ?? [];
+  const availableLangs = [
+    { code: 'en', label: 'English', flag: '🇬🇧' },
+    ...SUPPORTED_LANGUAGES.filter((l) => enabledLangs.includes(l.code)),
+  ];
+
+  // Helper: get translated label/options if available
+  const tLabel = (q: Question) =>
+    activeLang !== 'en' ? (q.translations?.[activeLang]?.label ?? q.label) : q.label;
+  const tOptions = (q: Question) =>
+    activeLang !== 'en' ? (q.translations?.[activeLang]?.options ?? q.options) : q.options;
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-4 py-12 bg-[radial-gradient(circle_at_30%_20%,rgba(59,130,246,.07),transparent_40%),var(--bg)]">
@@ -134,55 +143,45 @@ export default function PublicSurvey() {
           <div className="font-black text-[18px] tracking-wider uppercase mb-2">
             {project?.name}
           </div>
-          {step >= 0 && (
-            <>
-              {project?.settings?.survey_welcome && (
-                <p className="text-[var(--text2)] text-[13px]">{project.settings.survey_welcome}</p>
-              )}
-              {!project?.settings?.survey_welcome && (
-                <p className="text-[var(--text2)] text-[13px]">Anonymous survey — 100% confidential. No personal data collected.</p>
-              )}
-            </>
+          {project?.settings?.survey_welcome && (
+            <p className="text-[var(--text2)] text-[13px]">{project.settings.survey_welcome}</p>
+          )}
+          {!project?.settings?.survey_welcome && (
+            <p className="text-[var(--text2)] text-[13px]">Anonymous survey — 100% confidential. No personal data collected.</p>
+          )}
+          {/* Language switcher */}
+          {availableLangs.length > 1 && (
+            <div className="flex items-center justify-center gap-1.5 mt-3 flex-wrap">
+              {availableLangs.map((l) => (
+                <button
+                  key={l.code}
+                  type="button"
+                  onClick={() => setActiveLang(l.code)}
+                  className={`px-2.5 py-1 rounded-lg border text-[11px] transition-all flex items-center gap-1 ${
+                    activeLang === l.code
+                      ? 'bg-[rgba(59,130,246,.12)] border-[var(--accent)] text-[var(--text)]'
+                      : 'bg-[var(--surface)] border-[var(--border)] text-[var(--text3)] hover:border-[var(--accent)]'
+                  }`}
+                >
+                  <span>{l.flag}</span>{l.label}
+                </button>
+              ))}
+            </div>
           )}
         </div>
 
         {/* Progress */}
-        {step >= 0 && (
-          <div className="mb-6">
-            <div className="flex justify-between text-[11px] text-[var(--text3)] mb-1.5">
-              <span>Question {Math.min(step + 1, totalSteps)} of {totalSteps}</span>
-              <span>{progress}%</span>
-            </div>
-            <ProgressBar value={progress} height={5} />
+        <div className="mb-6">
+          <div className="flex justify-between text-[11px] text-[var(--text3)] mb-1.5">
+            <span>Question {Math.min(step + 1, totalSteps)} of {totalSteps}</span>
+            <span>{progress}%</span>
           </div>
-        )}
+          <ProgressBar value={progress} height={5} />
+        </div>
 
         {/* Card */}
         <div className="bg-[var(--surface)] border border-[rgba(255,255,255,.04)] rounded-2xl p-6 shadow-[0_24px_60px_rgba(0,0,0,.3)]">
           <form onSubmit={handleSubmit(onSubmit)}>
-
-            {/* ── Language picker ── */}
-            {step === -1 && multiLang && (
-              <div className="flex flex-col gap-5">
-                <div>
-                  <h2 className="font-bold text-[16px] mb-1">Choose your language</h2>
-                  <p className="text-[12px] text-[var(--text3)]">Select the language you would like to answer in.</p>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  {enabledLangs.map((l) => (
-                    <button
-                      key={l.code}
-                      type="button"
-                      onClick={() => { setLang(l.code); goNext(); }}
-                      className="flex items-center gap-3 px-4 py-3.5 rounded-xl border text-[14px] font-semibold transition-all bg-[var(--bg)] border-[var(--border)] text-[var(--text2)] hover:border-[var(--accent)] hover:text-[var(--text)]"
-                    >
-                      <span className="text-2xl">{l.flag}</span>
-                      <span>{l.label}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
 
             {step === 0 && (
               <div className="flex flex-col gap-4">
@@ -194,17 +193,10 @@ export default function PublicSurvey() {
                   options={REGIONS.map((r) => ({ value: r.code, label: `${r.flag} ${r.label}` }))}
                   {...register('_region')}
                 />
-                <div className="flex justify-between mt-2">
-                  {multiLang && (
-                    <Button variant="ghost" type="button" onClick={() => setStep(-1)}>
-                      ← Back
-                    </Button>
-                  )}
-                  <div className="ml-auto">
-                    <Button variant="primary" type="button" onClick={goNext}>
-                      Next →
-                    </Button>
-                  </div>
+                <div className="flex justify-end mt-2">
+                  <Button variant="primary" type="button" onClick={goNext}>
+                    Next →
+                  </Button>
                 </div>
               </div>
             )}
@@ -216,7 +208,7 @@ export default function PublicSurvey() {
                   <p className="text-[11px] text-[var(--text3)] -mt-2">Optional</p>
                 )}
 
-                <QuestionInput q={currentQ} register={register} watch={watch} setValue={setValue} lang={lang} tOptions={tOptions} />
+                <QuestionInput q={currentQ} tOptions={tOptions(currentQ)} register={register} watch={watch} setValue={setValue} />
 
                 <div className="flex justify-between mt-2">
                   <Button variant="ghost" type="button" onClick={() => setStep((s) => s - 1)}>
@@ -250,16 +242,14 @@ export default function PublicSurvey() {
 
 interface QInputProps {
   q: Question;
+  tOptions: string[] | null | undefined;
   register: ReturnType<typeof useForm<Record<string, unknown>>>['register'];
   watch: ReturnType<typeof useForm<Record<string, unknown>>>['watch'];
   setValue: ReturnType<typeof useForm<Record<string, unknown>>>['setValue'];
-  lang: string;
-  tOptions: (q: Question) => string[] | null;
 }
 
-function QuestionInput({ q, register, watch, setValue, tOptions }: QInputProps) {
+function QuestionInput({ q, tOptions, register, watch, setValue }: QInputProps) {
   const val = watch(q.id) as number | string | undefined;
-  const opts = tOptions(q);
 
   if (q.type === 'text') {
     return <Input placeholder="Your answer…" {...register(q.id)} onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }} />;
@@ -270,10 +260,9 @@ function QuestionInput({ q, register, watch, setValue, tOptions }: QInputProps) 
   }
 
   if (q.type === 'yes_no') {
-    const yesNoOpts = (opts && opts.length === 2) ? opts : ['Yes', 'No'];
     return (
       <div className="flex gap-3">
-        {yesNoOpts.map((opt) => (
+        {['Yes', 'No'].map((opt) => (
           <button
             key={opt}
             type="button"
@@ -319,39 +308,45 @@ function QuestionInput({ q, register, watch, setValue, tOptions }: QInputProps) 
     );
   }
 
-  if (q.type === 'choice' && opts) {
+  if (q.type === 'choice' && q.options) {
+    const displayOptions = tOptions ?? q.options;
     return (
       <div className="flex flex-col gap-2">
-        {opts.map((opt) => (
-          <button
-            key={opt}
-            type="button"
-            onClick={() => setValue(q.id, opt)}
-            className={`text-left px-4 py-3 rounded-xl border text-[13px] transition-all ${
-              val === opt
-                ? 'bg-[rgba(59,130,246,.1)] border-[var(--accent)] text-[var(--text)]'
-                : 'bg-[var(--bg)] border-[var(--border)] text-[var(--text2)] hover:border-[var(--accent)]'
-            }`}
-          >
-            {opt}
-          </button>
-        ))}
+        {displayOptions.map((opt, i) => {
+          const origOpt = q.options![i] ?? opt;
+          return (
+            <button
+              key={origOpt}
+              type="button"
+              onClick={() => setValue(q.id, origOpt)}
+              className={`text-left px-4 py-3 rounded-xl border text-[13px] transition-all ${
+                val === origOpt
+                  ? 'bg-[rgba(59,130,246,.1)] border-[var(--accent)] text-[var(--text)]'
+                  : 'bg-[var(--bg)] border-[var(--border)] text-[var(--text2)] hover:border-[var(--accent)]'
+              }`}
+            >
+              {opt}
+            </button>
+          );
+        })}
       </div>
     );
   }
 
-  if (q.type === 'multi_choice' && opts) {
+  if (q.type === 'multi_choice' && q.options) {
+    const displayOptions = tOptions ?? q.options;
     const selected = (val as string[] | undefined) ?? [];
     return (
       <div className="flex flex-col gap-2">
-        {opts.map((opt) => {
-          const isSelected = selected.includes(opt);
+        {displayOptions.map((opt, i) => {
+          const origOpt = q.options![i] ?? opt;
+          const isSelected = selected.includes(origOpt);
           return (
             <button
-              key={opt}
+              key={origOpt}
               type="button"
               onClick={() => {
-                const next = isSelected ? selected.filter((s) => s !== opt) : [...selected, opt];
+                const next = isSelected ? selected.filter((s) => s !== origOpt) : [...selected, origOpt];
                 setValue(q.id, next);
               }}
               className={`text-left px-4 py-3 rounded-xl border text-[13px] transition-all flex items-center gap-3 ${

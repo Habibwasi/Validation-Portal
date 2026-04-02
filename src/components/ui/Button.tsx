@@ -9,7 +9,7 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 const base = 'inline-flex items-center justify-center gap-2 font-semibold rounded-[9px] transition-all focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed';
 const variants = {
-  primary:   'bg-gradient-to-r from-[var(--accent)] to-[var(--accent2)] text-white hover:brightness-110 hover:-translate-y-px shadow-[0_6px_20px_rgba(59,130,246,.28)]',
+  primary:   'bg-gradient-to-r from-[var(--accent)] to-[var(--accent2)] text-white hover:brightness-110 hover:-translate-y-px shadow-[0_6px_20px_rgba(245,158,11,.28)]',
   secondary: 'bg-[var(--surface2)] text-[var(--text)] border border-[var(--border)] hover:border-[var(--accent)] hover:text-[var(--accent)]',
   ghost:     'text-[var(--text2)] hover:text-[var(--text)] hover:bg-[var(--surface2)]',
   danger:    'bg-[rgba(239,68,68,.12)] text-[var(--red)] border border-[rgba(239,68,68,.3)] hover:bg-[rgba(239,68,68,.2)]',

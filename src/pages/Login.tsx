@@ -26,15 +26,15 @@ export default function Login() {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setLoading(false);
     if (error) { toast.error(error.message); return; }
-    navigate('/');
+    navigate('/app');
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 bg-[radial-gradient(circle_at_20%_20%,rgba(59,130,246,.08),transparent_40%),radial-gradient(circle_at_80%_80%,rgba(139,92,246,.06),transparent_40%),var(--bg)]">
+    <div className="min-h-screen flex items-center justify-center px-4 bg-[radial-gradient(circle_at_20%_20%,rgba(245,158,11,.07),transparent_40%),radial-gradient(circle_at_80%_80%,rgba(251,146,60,.05),transparent_40%),var(--bg)]">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
           <div className="font-black text-[22px] tracking-wider uppercase mb-1">Validate</div>
-          <p className="text-[var(--text2)] text-[13px]">Research Portal — Sign in to continue</p>
+          <p className="text-[var(--text2)] text-[13px]">Sign in to keep building</p>
         </div>
 
         <div className="bg-[var(--surface)] border border-[rgba(255,255,255,.05)] rounded-2xl p-6 shadow-[0_24px_60px_rgba(0,0,0,.4)]">
@@ -60,8 +60,8 @@ export default function Login() {
 
           {import.meta.env.VITE_DISABLE_SIGNUP !== 'true' && (
             <p className="text-center text-[12px] text-[var(--text3)] mt-4">
-              No account?{' '}
-              <Link to="/signup" className="text-[var(--accent)] hover:underline">Create one</Link>
+              New here?{' '}
+              <Link to="/signup" className="text-[var(--accent)] hover:underline">Get started</Link>
             </p>
           )}
         </div>

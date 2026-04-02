@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
-const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
+export const maxDuration = 30;
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
@@ -17,11 +17,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ error: 'Missing prompt in request body.' });
   }
 
-  const response = await fetch(GROQ_API_URL, {
+  const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${key}`,
+      Authorization: `Bearer ${key}`,
     },
     body: JSON.stringify({
       model: 'llama-3.3-70b-versatile',
@@ -31,16 +31,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }),
   });
 
-  if (!response.ok) {
-    const err = await response.text();
-    return res.status(502).json({ error: `Groq error: ${err}` });
+  if (!groqRes.ok) {
+    const errText = await groqRes.text();
+    return res.status(groqRes.status).json({ error: errText });
   }
 
-  const data = await response.json() as {
-    choices?: { message?: { content?: string } }[];
-  };
-
-  const text = data.choices?.[0]?.message?.content ?? '{}';
+  const data = await groqRes.json() as { choices: { message: { content: string } }[] };
+  const text = data.choices[0]?.message?.content ?? '{}';
   return res.status(200).json(JSON.parse(text));
 }
-

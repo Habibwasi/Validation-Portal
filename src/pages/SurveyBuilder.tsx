@@ -9,7 +9,7 @@ import {
   useSortable, arrayMove,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical, Plus, Trash2, Copy, ExternalLink, ChevronDown, ChevronRight, Wand2 } from 'lucide-react';
+import { GripVertical, Plus, Trash2, Copy, ExternalLink, ChevronDown, ChevronRight, Wand2, Languages, Save } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -17,7 +17,7 @@ import { supabase } from '@/lib/supabase';
 import { useProjectStore } from '@/store/projectStore';
 import type { Question, QuestionType, SurveyResponse } from '@/types';
 import { formatDate } from '@/lib/utils';
-import { REGIONS } from '@/types';
+import { REGIONS, SUPPORTED_LANGUAGES } from '@/types';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Card, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -61,97 +61,149 @@ export default function SurveyBuilder() {
   const [localQs, setLocalQs] = useState<Question[]>([]);
   const [addOpen, setAddOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<Question | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [reordering, setReordering] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [translating, setTranslating] = useState(false);
   const [delResponse, setDelResponse] = useState<SurveyResponse | null>(null);
   const [deletingResponse, setDeletingResponse] = useState(false);
+  const [saveAll, setSaveAll] = useState(false);
+  const [isDirty, setIsDirty] = useState(false);
 
-  useEffect(() => { setLocalQs(questions); }, [questions]);
+  useEffect(() => {
+    if (!isDirty) setLocalQs(questions);
+  }, [questions]);
 
-  const sensors = useSensors(
-    useSensor(PointerSensor),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
-  );
+  const onSave = async () => {
+    if (!id) return;
+    setSaveAll(true);
+    try {
+      const originalIds = new Set(questions.map((q) => q.id));
+      const localIds = new Set(localQs.map((q) => q.id));
 
-  const onDragEnd = async (event: DragEndEvent) => {
-    const { active, over } = event;
-    if (!over || active.id === over.id) return;
+      // Delete removed questions (real IDs only)
+      const toDelete = questions.filter((q) => !localIds.has(q.id));
+      await Promise.all(toDelete.map((q) => supabase.from('questions').delete().eq('id', q.id)));
 
-    const oldIndex = localQs.findIndex((q) => q.id === active.id);
-    const newIndex = localQs.findIndex((q) => q.id === over.id);
-    const reordered = arrayMove(localQs, oldIndex, newIndex).map((q, i) => ({
-      ...q, display_order: i,
-    }));
-    setLocalQs(reordered);
-    setReordering(true);
+      // Insert new questions (temp IDs not in original set)
+      const toInsert = localQs.filter((q) => !originalIds.has(q.id));
+      await Promise.all(toInsert.map((q) => supabase.from('questions').insert({
+        project_id: id, type: q.type, label: q.label,
+        required: q.required, options: q.options, display_order: q.display_order,
+      })));
 
-    // Persist new order
-    await Promise.all(
-      reordered.map((q) =>
-        supabase.from('questions').update({ display_order: q.display_order }).eq('id', q.id),
-      ),
-    );
-    setReordering(false);
+      // Update existing questions
+      const toUpdate = localQs.filter((q) => originalIds.has(q.id));
+      await Promise.all(toUpdate.map((q) => supabase.from('questions').update({
+        type: q.type, label: q.label, required: q.required,
+        options: q.options, display_order: q.display_order,
+      }).eq('id', q.id)));
+
+      await refreshDeps(id);
+      setIsDirty(false);
+      toast.success('Survey saved!');
+    } catch {
+      toast.error('Failed to save');
+    } finally {
+      setSaveAll(false);
+    }
   };
 
   const onGenerate = async () => {
-    if (!current) return;
+    if (!current?.description || !id) return;
     setGenerating(true);
     try {
-      const prompt = `You are helping a first-time founder validate their startup idea.
-Project: "${current.name}"
-Problem: "${current.description ?? 'Not specified'}"
-
-Suggest 5 concise survey questions to validate this idea with potential users.
-Focus on: pain severity, current alternatives, frequency, willingness to pay.
-
-Return ONLY valid JSON:
-{
-  "questions": [
-    { "type": "rating", "label": "How painful is this problem for you on a scale of 1–10?" },
-    { "type": "yes_no", "label": "Do you currently pay for any solution to this?" },
-    { "type": "long_text", "label": "How do you currently handle this problem?" },
-    { "type": "choice", "label": "How often do you face this problem?", "options": ["Daily", "Weekly", "Monthly", "Rarely"] },
-    { "type": "text", "label": "What would make you switch to a new solution?" }
-  ]
-}
-Valid types: text, long_text, rating, scale, yes_no, choice, multi_choice. Only include "options" for choice or multi_choice types. Tailor every question to the specific project and problem above.`;
-
       const res = await fetch('/api/analyse', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt }),
+        body: JSON.stringify({
+          prompt: `You are a startup validation expert. Generate 5 NEW survey questions to validate this product concept.
+
+Product name: ${current.name}
+Description: ${current.description}
+${localQs.length > 0 ? `\nExisting questions (do NOT repeat or rephrase these):\n${localQs.map((q, i) => `${i + 1}. ${q.label}`).join('\n')}\n\nGenerate questions that cover different angles not already addressed above.` : ''}
+
+Return ONLY valid JSON:
+{ "questions": [{ "type": "text|long_text|rating|scale|yes_no|choice|multi_choice", "label": "...", "required": true, "options": null }] }
+
+Available types: text, long_text, rating (pain 1-10), scale (1-10), yes_no, choice (needs options array), multi_choice (needs options array).
+Focus on: problem pain level, current alternatives, willingness to pay, concept interest, pilot readiness.`,
+        }),
       });
       if (!res.ok) {
         const errText = await res.text();
         throw new Error(`HTTP ${res.status}${errText ? `: ${errText}` : ''}`);
       }
-      const data = await res.json() as { questions?: { type: string; label: string; options?: string[] }[] };
-      const suggested = data.questions ?? [];
-      if (suggested.length === 0) throw new Error('No questions returned');
-
+      const data = await res.json() as { questions?: { type: string; label: string; required: boolean; options: string[] | null }[] };
+      const qs = data.questions;
+      if (!Array.isArray(qs) || qs.length === 0) throw new Error('No questions returned');
       const maxOrder = localQs.reduce((m, q) => Math.max(m, q.display_order), -1);
-      await Promise.all(
-        suggested.map((q, i) =>
-          supabase.from('questions').insert({
-            project_id: id,
-            type: q.type,
-            label: q.label,
-            required: false,
-            options: q.options ?? null,
-            display_order: maxOrder + 1 + i,
-          }),
-        ),
-      );
-      await refreshDeps(id!);
-      toast.success(`${suggested.length} questions added — edit any you want to tweak`);
+      const newQs: Question[] = qs.map((q, i) => ({
+        id: `temp-${Date.now()}-${i}`,
+        project_id: id!,
+        type: q.type as QuestionType,
+        label: q.label,
+        required: q.required,
+        options: q.options?.length ? q.options : null,
+        display_order: maxOrder + 1 + i,
+        translations: null,
+        created_at: new Date().toISOString(),
+      }));
+      setLocalQs((prev) => [...prev, ...newQs]);
+      setIsDirty(true);
+      toast.success(`${qs.length} questions generated — press Save to apply`);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       toast.error(`Could not generate questions: ${msg}`);
     } finally {
       setGenerating(false);
     }
+  };
+
+  const onTranslate = async () => {
+    const enabledLangs = current?.settings?.enabled_languages;
+    if (!enabledLangs?.length || !id) return;
+    setTranslating(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch('/api/translate-survey', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session?.access_token ?? ''}`,
+        },
+        body: JSON.stringify({ projectId: id, languages: enabledLangs }),
+      });
+      if (!res.ok) {
+        const errText = await res.text();
+        throw new Error(`HTTP ${res.status}${errText ? `: ${errText}` : ''}`);
+      }
+      await refreshDeps(id);
+      const langLabels = enabledLangs
+        .map((c) => SUPPORTED_LANGUAGES.find((l) => l.code === c)?.label ?? c)
+        .join(', ');
+      toast.success(`Survey translated into ${langLabels}!`);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      toast.error(`Translation failed: ${msg}`);
+    } finally {
+      setTranslating(false);
+    }
+  };
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  const onDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIndex = localQs.findIndex((q) => q.id === active.id);
+    const newIndex = localQs.findIndex((q) => q.id === over.id);
+    const reordered = arrayMove(localQs, oldIndex, newIndex).map((q, i) => ({
+      ...q, display_order: i,
+    }));
+    setLocalQs(reordered);
+    setIsDirty(true);
   };
 
   const appBase = (import.meta.env.VITE_APP_URL as string | undefined)?.replace(/\/$/, '') ?? window.location.origin;
@@ -163,9 +215,32 @@ Valid types: text, long_text, rating, scale, yes_no, choice, multi_choice. Only 
         title="Survey Builder"
         subtitle="Questions here become the public survey respondents fill out."
         actions={
-          <div className="flex items-center gap-2">
-            <Button variant="secondary" onClick={onGenerate} loading={generating} disabled={!current?.description}>
-              <Wand2 size={15} /> Generate with AI
+          <div className="flex gap-2">
+            {current?.settings?.enabled_languages?.length
+              ? (
+                <Button
+                  variant="secondary"
+                  loading={translating}
+                  onClick={onTranslate}
+                  title={`Translate into ${current.settings.enabled_languages.join(', ')}`}
+                >
+                  <Languages size={15} />
+                  {translating ? 'Translating…' : 'Translate survey'}
+                </Button>
+              ) : null
+            }
+            <Button
+              variant="secondary"
+              loading={generating}
+              disabled={!current?.description}
+              onClick={onGenerate}
+              title={!current?.description ? 'Add a project description first' : 'Generate questions using AI'}
+            >
+              <Wand2 size={15} />
+              {generating ? 'Generating…' : 'Generate with AI'}
+            </Button>
+            <Button variant={isDirty ? 'primary' : 'secondary'} loading={saveAll} onClick={onSave}>
+              <Save size={15} /> Save
             </Button>
             <Button variant="primary" onClick={() => setAddOpen(true)}>
               <Plus size={15} /> Add question
@@ -176,7 +251,7 @@ Valid types: text, long_text, rating, scale, yes_no, choice, multi_choice. Only 
 
       {/* Share card */}
       {current && (
-        <Card className="mb-6 bg-[rgba(245,158,11,.04)] border-[rgba(245,158,11,.2)]">
+        <Card className="mb-6 bg-[rgba(59,130,246,.04)] border-[rgba(59,130,246,.2)]">
           <CardTitle>🔗 Public Survey Link</CardTitle>
           <div className="flex items-center gap-2">
             <code className="flex-1 text-[12px] font-mono text-[var(--accent2)] bg-[var(--surface2)] rounded-lg px-3 py-2 border border-[var(--border)] truncate">
@@ -215,7 +290,7 @@ Valid types: text, long_text, rating, scale, yes_no, choice, multi_choice. Only 
         <div className="mb-4 flex items-center justify-between">
           <p className="text-[12px] text-[var(--text3)]">
             {localQs.length} question{localQs.length !== 1 ? 's' : ''} — drag to reorder
-            {reordering && <span className="ml-2 text-[var(--accent)]">Saving…</span>}
+            {isDirty && <span className="ml-2 text-amber-400">Unsaved changes</span>}
           </p>
         </div>
       )}
@@ -229,10 +304,9 @@ Valid types: text, long_text, rating, scale, yes_no, choice, multi_choice. Only 
                 question={q}
                 index={i}
                 onEdit={() => setEditTarget(q)}
-                onDelete={async () => {
-                  await supabase.from('questions').delete().eq('id', q.id);
-                  await refreshDeps(id!);
-                  toast.success('Question removed');
+                onDelete={() => {
+                  setLocalQs((prev) => prev.filter((r) => r.id !== q.id));
+                  setIsDirty(true);
                 }}
               />
             ))}
@@ -246,35 +320,37 @@ Valid types: text, long_text, rating, scale, yes_no, choice, multi_choice. Only 
         initial={editTarget}
         onClose={() => { setAddOpen(false); setEditTarget(null); }}
         onSave={async (data) => {
-          setSaving(true);
           const opts = data.options
             ? data.options.split(',').map((s) => s.trim()).filter(Boolean)
             : null;
 
           if (editTarget) {
-            await supabase.from('questions').update({
-              type: data.type, label: data.label,
-              required: data.required, options: opts,
-            }).eq('id', editTarget.id);
+            setLocalQs((prev) => prev.map((q) => q.id === editTarget.id
+              ? { ...q, type: data.type as QuestionType, label: data.label, required: data.required, options: opts }
+              : q
+            ));
           } else {
             const maxOrder = localQs.reduce((m, q) => Math.max(m, q.display_order), -1);
-            await supabase.from('questions').insert({
-              project_id: id,
-              type: data.type,
+            const tempQ: Question = {
+              id: `temp-${Date.now()}`,
+              project_id: id!,
+              type: data.type as QuestionType,
               label: data.label,
               required: data.required,
               options: opts,
               display_order: maxOrder + 1,
-            });
+              translations: null,
+              created_at: new Date().toISOString(),
+            };
+            setLocalQs((prev) => [...prev, tempQ]);
           }
 
-          await refreshDeps(id!);
-          setSaving(false);
+          setIsDirty(true);
           setAddOpen(false);
           setEditTarget(null);
-          toast.success(editTarget ? 'Question updated' : 'Question added');
+          toast.success(editTarget ? 'Question updated' : 'Question added — press Save to apply');
         }}
-        saving={saving}
+        saving={false}
       />
 
       {/* ── Survey Responses ── */}
@@ -336,7 +412,7 @@ function ResponseRow({ response: r, questions, onDelete }: {
   const region = REGIONS.find((reg) => reg.code === r.region);
 
   return (
-    <div className="bg-[var(--surface)] border border-[rgba(255,255,255,.04)] rounded-xl px-4 py-3 group hover:border-[rgba(245,158,11,.2)] transition-all">
+    <div className="bg-[var(--surface)] border border-[rgba(255,255,255,.04)] rounded-xl px-4 py-3 group hover:border-[rgba(59,130,246,.2)] transition-all">
       <div className="flex items-center gap-3">
         <button
           type="button"
@@ -344,7 +420,7 @@ function ResponseRow({ response: r, questions, onDelete }: {
           onClick={() => setExpanded((v) => !v)}
         >
           {expanded ? <ChevronDown size={13} className="text-[var(--text3)] flex-shrink-0" /> : <ChevronRight size={13} className="text-[var(--text3)] flex-shrink-0" />}
-          <div className="w-7 h-7 rounded-full bg-[rgba(245,158,11,.12)] text-[var(--accent)] flex items-center justify-center text-[10px] font-bold flex-shrink-0">
+          <div className="w-7 h-7 rounded-full bg-[rgba(6,182,212,.12)] text-[var(--accent2)] flex items-center justify-center text-[10px] font-bold flex-shrink-0">
             #
           </div>
           <div className="flex-1 min-w-0">
@@ -405,7 +481,7 @@ function SortableQuestion({
     <div
       ref={setNodeRef}
       style={style}
-      className="bg-[var(--surface)] border border-[rgba(255,255,255,.04)] rounded-xl px-4 py-3 flex items-center gap-3 group hover:border-[rgba(245,158,11,.25)] transition-all"
+      className="bg-[var(--surface)] border border-[rgba(255,255,255,.04)] rounded-xl px-4 py-3 flex items-center gap-3 group hover:border-[rgba(59,130,246,.25)] transition-all"
     >
       <div
         {...attributes}

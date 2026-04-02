@@ -30,8 +30,12 @@ create table if not exists questions (
   options       text[],
   required      boolean not null default false,
   display_order int not null default 0,
+  translations  jsonb not null default '{}',
   created_at    timestamptz not null default now()
 );
+
+-- Migration: add translations column if upgrading an existing database
+alter table questions add column if not exists translations jsonb not null default '{}';
 
 create table if not exists interviews (
   id           uuid primary key default gen_random_uuid(),
@@ -170,7 +174,8 @@ create policy "analysis_cache: project owner all"
     project_id in (select id from "projects" where user_id = auth.uid())
   );
 
--- ── Survey translations migration ────────────────────────────
--- Run this once on existing databases (safe to re-run)
-alter table questions
-  add column if not exists translations jsonb not null default '{}';
+-- analysis_cache: anon can read (for the public shareable analysis link /a/:slug)
+drop policy if exists "analysis_cache: anon read" on "analysis_cache";
+create policy "analysis_cache: anon read"
+  on "analysis_cache" for select
+  using (true);

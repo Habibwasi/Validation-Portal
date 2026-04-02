@@ -22,7 +22,7 @@ export interface ProjectSettings {
   pain_question_ids?: string[]; // question IDs treated as "pain" metrics
   concept_question_id?: string; // question ID used for concept interest %
   pilot_question_id?: string;   // question ID used for pilot-ready count
-  enabled_languages?: string[]; // e.g. ['en','ar','bn']
+  enabled_languages?: string[]; // ISO codes of languages the survey is translated into
 }
 
 export interface Question {
@@ -33,8 +33,8 @@ export interface Question {
   options: string[] | null; // for choice / multi_choice
   required: boolean;
   display_order: number;
-  created_at: string;
   translations: Record<string, { label: string; options?: string[] }> | null;
+  created_at: string;
 }
 
 export interface Interview {
@@ -83,27 +83,6 @@ export interface AnalysisTheme {
   strength: 'high' | 'medium' | 'low';
 }
 
-// ─── Supported survey languages ───────────────────────────────────────────
-
-export interface SurveyLanguage {
-  code: string;
-  label: string;
-  flag: string;
-  rtl?: boolean;
-}
-
-export const SUPPORTED_LANGUAGES: SurveyLanguage[] = [
-  { code: 'en', label: 'English',    flag: '🇬🇧' },
-  { code: 'ar', label: 'Arabic',     flag: '🇸🇦', rtl: true },
-  { code: 'bn', label: 'Bengali',    flag: '🇧🇩' },
-  { code: 'fr', label: 'French',     flag: '🇫🇷' },
-  { code: 'es', label: 'Spanish',    flag: '🇪🇸' },
-  { code: 'tr', label: 'Turkish',    flag: '🇹🇷' },
-  { code: 'hi', label: 'Hindi',      flag: '🇮🇳' },
-  { code: 'da', label: 'Danish',     flag: '🇩🇰' },
-  { code: 'de', label: 'German',     flag: '🇩🇪' },
-];
-
 // ─── Region codes ──────────────────────────────────────────────────────────
 
 export type RegionCode =
@@ -114,6 +93,23 @@ export interface Region {
   label: string;
   flag: string;
 }
+
+export interface SupportedLanguage {
+  code: string;
+  label: string;
+  flag: string;
+}
+
+export const SUPPORTED_LANGUAGES: SupportedLanguage[] = [
+  { code: 'ar', label: 'Arabic',  flag: '🇸🇦' },
+  { code: 'bn', label: 'Bengali', flag: '🇧🇩' },
+  { code: 'fr', label: 'French',  flag: '🇫🇷' },
+  { code: 'es', label: 'Spanish', flag: '🇪🇸' },
+  { code: 'tr', label: 'Turkish', flag: '🇹🇷' },
+  { code: 'hi', label: 'Hindi',   flag: '🇮🇳' },
+  { code: 'da', label: 'Danish',  flag: '🇩🇰' },
+  { code: 'de', label: 'German',  flag: '🇩🇪' },
+];
 
 export const REGIONS: Region[] = [
   { code: 'eu',     label: 'Europe',        flag: '🇪🇺' },
