@@ -13,7 +13,8 @@ import { Button } from '@/components/ui/Button';
 import { Input, Textarea, Select } from '@/components/ui/Input';
 import { Badge } from '@/components/ui/Badge';
 import toast from 'react-hot-toast';
-import { Trash2 } from 'lucide-react';
+import { Trash2, Copy, ExternalLink } from 'lucide-react';
+import { slugify } from '@/lib/utils';
 
 const schema = z.object({
   name: z.string().min(1, 'Name is required').max(100),
@@ -35,11 +36,21 @@ export default function ProjectSettings() {
   const [translating, setTranslating] = useState(false);
   const [syncedProjectId, setSyncedProjectId] = useState<string | null>(null);
   const [archiving, setArchiving] = useState(false);
+  const [slugValue, setSlugValue] = useState('');
+  const [slugSaving, setSlugSaving] = useState(false);
+  const [slugError, setSlugError] = useState('');
+  const [syncedSlug, setSyncedSlug] = useState<string | null>(null);
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {},
   });
+
+  // Sync slug when project loads
+  if (project && project.slug !== syncedSlug) {
+    setSyncedSlug(project.slug);
+    setSlugValue(project.slug);
+  }
 
   // Sync form + painIds when project loads/changes (render-phase update avoids cascading effect)
   if (project && project.id !== syncedProjectId) {
@@ -122,6 +133,37 @@ export default function ProjectSettings() {
       setTranslating(false);
     }
   };
+
+  const saveSlug = async () => {
+    if (!project) return;
+    const clean = slugify(slugValue);
+    if (!clean) { setSlugError('Slug cannot be empty'); return; }
+    if (clean === project.slug) { setSlugError(''); return; }
+    setSlugSaving(true);
+    setSlugError('');
+    // Check uniqueness
+    const { data: existing } = await supabase
+      .from('projects')
+      .select('id')
+      .eq('slug', clean)
+      .neq('id', project.id)
+      .maybeSingle();
+    if (existing) {
+      setSlugError('This slug is already taken — try another');
+      setSlugSaving(false);
+      return;
+    }
+    const { error } = await supabase.from('projects').update({ slug: clean }).eq('id', project.id);
+    setSlugSaving(false);
+    if (error) { setSlugError('Failed to save slug'); return; }
+    setSlugValue(clean);
+    setSyncedSlug(clean);
+    toast.success('Survey link updated!');
+    if (id) loadProject(id);
+  };
+
+  const appBase = (import.meta.env.VITE_APP_URL as string | undefined)?.replace(/\/$/, '') ?? window.location.origin;
+  const surveyUrl = project ? `${appBase}/s/${slugValue}` : '';
 
   const archiveProject = async () => {
     if (!project) return;
@@ -319,6 +361,43 @@ export default function ProjectSettings() {
             <p className="text-[11px] text-[var(--text3)]">
               Translations are saved per-question and used automatically on the survey. Re-run after adding new questions.
             </p>
+          </div>
+        </Card>
+
+        {/* Survey Link */}
+        <Card accent="purple" className="p-5">
+          <CardTitle>Public Survey Link</CardTitle>
+          <p className="text-[12px] text-[var(--text3)] mb-4">
+            Customise the URL slug for your public survey. Only lowercase letters, numbers, and hyphens are allowed.
+          </p>
+          <div className="flex items-start gap-2">
+            <div className="flex-1">
+              <div className="flex items-center gap-0 rounded-lg border border-[var(--border)] overflow-hidden bg-[var(--surface2)] focus-within:border-[var(--accent)] transition-colors">
+                <span className="px-3 text-[12px] text-[var(--text3)] whitespace-nowrap border-r border-[var(--border)] bg-[var(--bg)] py-2">
+                  {appBase}/s/
+                </span>
+                <input
+                  className="flex-1 bg-transparent px-3 py-2 text-[13px] text-[var(--text)] outline-none font-mono"
+                  value={slugValue}
+                  onChange={(e) => { setSlugValue(e.target.value); setSlugError(''); }}
+                  onBlur={() => setSlugValue(slugify(slugValue) || slugValue)}
+                  placeholder="your-survey-slug"
+                />
+              </div>
+              {slugError && <p className="text-[11px] text-[var(--red)] mt-1">{slugError}</p>}
+              <p className="text-[11px] text-[var(--text3)] mt-1">Preview: <span className="font-mono text-[var(--accent2)]">{surveyUrl}</span></p>
+            </div>
+            <Button variant="secondary" type="button" size="sm" loading={slugSaving} onClick={saveSlug} className="mt-0.5">
+              Update
+            </Button>
+          </div>
+          <div className="flex gap-2 mt-3">
+            <Button size="sm" variant="ghost" type="button" onClick={() => { navigator.clipboard.writeText(surveyUrl); toast.success('Copied!'); }}>
+              <Copy size={13} /> Copy link
+            </Button>
+            <Button size="sm" variant="ghost" type="button" onClick={() => window.open(surveyUrl, '_blank')}>
+              <ExternalLink size={13} /> Preview
+            </Button>
           </div>
         </Card>
 
