@@ -252,7 +252,7 @@ ${localQs.map((q) => `{ "id": "${q.id}", "label": ${JSON.stringify(q.label)} }`)
         title="Survey Builder"
         subtitle="Questions here become the public survey respondents fill out."
         actions={
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2 justify-end">
             {localQs.length > 0 && (
               <Button
                 variant="secondary"
@@ -261,7 +261,7 @@ ${localQs.map((q) => `{ "id": "${q.id}", "label": ${JSON.stringify(q.label)} }`)
                 title="Check whether your questions are biased or leading — based on The Mom Test, the gold standard for customer discovery interviews"
               >
                 <ShieldCheck size={15} />
-                {momChecking ? 'Checking…' : 'Check for bias'}
+                <span className="hidden sm:inline">{momChecking ? 'Checking…' : 'Check for bias'}</span>
               </Button>
             )}
             <Button
@@ -272,7 +272,7 @@ ${localQs.map((q) => `{ "id": "${q.id}", "label": ${JSON.stringify(q.label)} }`)
               title={!current?.description ? 'Add a project description first' : 'Generate questions using AI'}
             >
               <Wand2 size={15} />
-              {generating ? 'Generating…' : 'Generate with AI'}
+              <span className="hidden sm:inline">{generating ? 'Generating…' : 'Generate with AI'}</span>
             </Button>
             <Button variant={isDirty ? 'primary' : 'secondary'} loading={saveAll} onClick={onSave}>
               <Save size={15} /> Save

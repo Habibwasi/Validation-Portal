@@ -99,7 +99,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen">
       {/* ── Mobile top bar ─────────────────────────────────────────────────── */}
-      <div className="md:hidden fixed top-0 left-0 right-0 z-40 h-12 bg-[var(--bg2)] border-b border-[var(--border)] flex items-center px-4 gap-2">
+      <div className="md:hidden fixed top-0 left-0 right-0 z-40 bg-[var(--bg2)] border-b border-[var(--border)] safe-top">
+      <div className="h-12 flex items-center px-4 gap-2">
         <button
           onClick={() => id ? navigate('/app') : undefined}
           className="font-black text-[13px] tracking-wider uppercase text-[var(--text)] flex-shrink-0"
@@ -126,6 +127,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <LogOut size={15} />
           </button>
         </div>
+      </div>
       </div>
 
       {/* ── Desktop Sidebar ─────────────────────────────────────────────────── */}
@@ -206,7 +208,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       {/* ── Main content ────────────────────────────────────────────────────── */}
-      <main className="flex-1 overflow-x-hidden pt-12 pb-20 md:pt-0 md:pb-0">
+      <main className="flex-1 overflow-x-hidden mobile-main-padding">
         {children}
       </main>
 
