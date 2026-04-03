@@ -9,7 +9,7 @@ import {
   useSortable, arrayMove,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical, Plus, Trash2, Copy, ExternalLink, ChevronDown, ChevronRight, Wand2, Save } from 'lucide-react';
+import { GripVertical, Plus, Trash2, Copy, ExternalLink, ChevronDown, ChevronRight, Wand2, Save, ShieldCheck, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -66,10 +66,17 @@ export default function SurveyBuilder() {
   const [deletingResponse, setDeletingResponse] = useState(false);
   const [saveAll, setSaveAll] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
+  const [momChecking, setMomChecking] = useState(false);
+  const [momResults, setMomResults] = useState<Record<string, MomTestResult>>({});
 
   useEffect(() => {
     if (!isDirty) setLocalQs(questions);
   }, [questions]);
+
+  // Clear Mom Test results whenever questions are edited so scores don't go stale
+  useEffect(() => {
+    if (!momChecking) setMomResults({});
+  }, [localQs]);
 
   const onSave = async () => {
     if (!id) return;
@@ -159,6 +166,57 @@ Focus on: problem pain level, current alternatives, willingness to pay, concept 
     }
   };
 
+  const onMomTest = async () => {
+    if (localQs.length === 0) { toast.error('Add some questions first.'); return; }
+    setMomChecking(true);
+    try {
+      const res = await fetch('/api/analyse', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt: `You are an expert in The Mom Test by Rob Fitzpatrick — the gold standard for unbiased customer discovery.
+
+Score each survey question below against Mom Test principles. Flag questions that are:
+- Leading: push respondents toward a positive answer (e.g. "Don't you think…", "Wouldn't it be great if…")
+- Hypothetical: ask what someone WOULD do ("Would you use…", "Would you pay…") — unreliable
+- Compliment-fishing: designed to make the founder feel good rather than extract signal
+- Future-focused instead of past-focused (ask about past behaviour, not hypothetical futures)
+- Pitching the idea instead of exploring the problem
+
+For EACH question return:
+- score: "good" (passes Mom Test) | "warning" (mild issue) | "bad" (will give false positives)
+- issue: one short sentence explaining the problem (null if good)
+- suggestion: a rewritten version that fixes the issue (null if good)
+
+Return ONLY valid JSON:
+{ "results": [ { "id": "...", "score": "good"|"warning"|"bad", "issue": "..." | null, "suggestion": "..." | null } ] }
+
+Questions:
+${localQs.map((q) => `{ "id": "${q.id}", "label": ${JSON.stringify(q.label)} }`).join('\n')}`,
+        }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json() as { results?: MomTestResult[] };
+      if (!Array.isArray(data.results)) throw new Error('Unexpected response shape');
+      const map: Record<string, MomTestResult> = {};
+      for (const r of data.results) map[r.id] = r;
+      // Deliberately bypass the localQs-clearing effect by setting directly
+      setMomResults(map);
+      const bad = data.results.filter((r) => r.score === 'bad').length;
+      const warn = data.results.filter((r) => r.score === 'warning').length;
+      if (bad + warn === 0) {
+        toast.success('All questions pass the Mom Test ✓');
+      } else {
+        toast(`${bad} problematic · ${warn} warning${warn !== 1 ? 's' : ''} — see below`, { icon: '⚠️' });
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      toast.error(`Mom Test check failed: ${msg}`);
+    } finally {
+      setMomChecking(false);
+    }
+  };
+
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
@@ -186,6 +244,17 @@ Focus on: problem pain level, current alternatives, willingness to pay, concept 
         subtitle="Questions here become the public survey respondents fill out."
         actions={
           <div className="flex gap-2">
+            {localQs.length > 0 && (
+              <Button
+                variant="secondary"
+                loading={momChecking}
+                onClick={onMomTest}
+                title="Check questions against Mom Test principles"
+              >
+                <ShieldCheck size={15} />
+                {momChecking ? 'Checking…' : 'Mom Test'}
+              </Button>
+            )}
             <Button
               variant="secondary"
               loading={generating}
@@ -260,6 +329,7 @@ Focus on: problem pain level, current alternatives, willingness to pay, concept 
                 key={q.id}
                 question={q}
                 index={i}
+                momResult={momResults[q.id] ?? null}
                 onEdit={() => setEditTarget(q)}
                 onDelete={() => {
                   setLocalQs((prev) => prev.filter((r) => r.id !== q.id));
@@ -426,11 +496,20 @@ function ResponseRow({ response: r, questions, onDelete }: {
   );
 }
 
+// ── Mom Test types ───────────────────────────────────────────────────────────
+
+interface MomTestResult {
+  id: string;
+  score: 'good' | 'warning' | 'bad';
+  issue: string | null;
+  suggestion: string | null;
+}
+
 // ── Sortable Question Row ────────────────────────────────────────────────────
 
 function SortableQuestion({
-  question: q, index, onEdit, onDelete,
-}: { question: Question; index: number; onEdit: () => void; onDelete: () => void }) {
+  question: q, index, onEdit, onDelete, momResult,
+}: { question: Question; index: number; onEdit: () => void; onDelete: () => void; momResult: MomTestResult | null }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: q.id });
 
   const style = {
@@ -441,11 +520,19 @@ function SortableQuestion({
 
   const typeInfo = QUESTION_TYPES.find((t) => t.value === q.type);
 
+  const cardBorder = momResult?.score === 'bad'
+    ? 'border-[rgba(239,68,68,.4)] hover:border-[rgba(239,68,68,.6)]'
+    : momResult?.score === 'warning'
+      ? 'border-[rgba(251,191,36,.4)] hover:border-[rgba(251,191,36,.6)]'
+      : momResult?.score === 'good'
+        ? 'border-[rgba(34,197,94,.35)] hover:border-[rgba(34,197,94,.55)]'
+        : 'border-[rgba(255,255,255,.04)] hover:border-[rgba(59,130,246,.25)]';
+
   return (
     <div
       ref={setNodeRef}
       style={style}
-      className="bg-[var(--surface)] border border-[rgba(255,255,255,.04)] rounded-xl px-4 py-3 group hover:border-[rgba(59,130,246,.25)] transition-all"
+      className={`bg-[var(--surface)] border rounded-xl px-4 py-3 group transition-all ${cardBorder}`}
     >
       <div className="flex items-center gap-3">
         <div
@@ -466,6 +553,11 @@ function SortableQuestion({
               {typeInfo?.label}
             </Badge>
             {q.required && <Badge variant="neutral">Required</Badge>}
+            {momResult?.score === 'good' && (
+              <span className="inline-flex items-center gap-1 text-[11px] text-[#22c55e] font-semibold">
+                <CheckCircle2 size={11} /> Mom Test pass
+              </span>
+            )}
           </div>
         </div>
         <div className="flex gap-1 flex-shrink-0 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
@@ -475,6 +567,28 @@ function SortableQuestion({
           </Button>
         </div>
       </div>
+
+      {momResult && momResult.score !== 'good' && (
+        <div className={`mt-3 pt-3 border-t space-y-2 ${
+          momResult.score === 'bad' ? 'border-[rgba(239,68,68,.2)]' : 'border-[rgba(251,191,36,.2)]'
+        }`}>
+          <div className="flex items-start gap-2">
+            <AlertTriangle
+              size={13}
+              className={`flex-shrink-0 mt-0.5 ${momResult.score === 'bad' ? 'text-[#ef4444]' : 'text-[#fbbf24]'}`}
+            />
+            <p className={`text-[12px] font-medium leading-snug ${momResult.score === 'bad' ? 'text-[#ef4444]' : 'text-[#fbbf24]'}`}>
+              {momResult.issue}
+            </p>
+          </div>
+          {momResult.suggestion && (
+            <div className="ml-5 rounded-lg bg-[var(--surface2)] border border-[var(--border)] px-3 py-2">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--text3)] mb-1">Suggested rewrite</p>
+              <p className="text-[12px] text-[var(--text2)] italic">&ldquo;{momResult.suggestion}&rdquo;</p>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
