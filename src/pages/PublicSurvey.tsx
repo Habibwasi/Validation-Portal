@@ -135,10 +135,10 @@ export default function PublicSurvey() {
     activeLang !== 'en' ? (q.translations?.[activeLang]?.options ?? q.options) : q.options;
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-4 py-12 bg-[radial-gradient(circle_at_30%_20%,rgba(59,130,246,.07),transparent_40%),var(--bg)]">
+    <div className="min-h-screen flex flex-col items-center justify-start sm:justify-center px-4 py-8 sm:py-12 bg-[radial-gradient(circle_at_30%_20%,rgba(59,130,246,.07),transparent_40%),var(--bg)]">
       <div className="w-full max-w-lg">
         {/* Header */}
-        <div className="text-center mb-8">
+        <div className="text-center mb-6 sm:mb-8">
           <div className="font-black text-[18px] tracking-wider uppercase mb-2">
             {project?.name}
           </div>
@@ -179,7 +179,7 @@ export default function PublicSurvey() {
         </div>
 
         {/* Card */}
-        <div className="bg-[var(--surface)] border border-[rgba(255,255,255,.04)] rounded-2xl p-6 shadow-[0_24px_60px_rgba(0,0,0,.3)]">
+        <div className="bg-[var(--surface)] border border-[rgba(255,255,255,.04)] rounded-2xl p-4 sm:p-6 shadow-[0_24px_60px_rgba(0,0,0,.3)]">
           <form onSubmit={handleSubmit(onSubmit)}>
 
             {currentQ && (
@@ -270,13 +270,13 @@ function QuestionInput({ q, tOptions, register, watch, setValue }: QInputProps) 
           <span>{q.type === 'rating' ? 'Not painful' : 'Not at all'}</span>
           <span>{q.type === 'rating' ? 'Extremely painful' : 'Extremely'}</span>
         </div>
-        <div className="flex gap-1.5">
+        <div className="grid grid-cols-5 sm:grid-cols-10 gap-1.5">
           {[1,2,3,4,5,6,7,8,9,10].map((n) => (
             <button
               key={n}
               type="button"
               onClick={() => setValue(q.id, n)}
-              className={`flex-1 py-2 rounded-lg border text-[13px] font-bold transition-all ${
+              className={`py-3 sm:py-2 rounded-lg border text-[14px] sm:text-[13px] font-bold transition-all ${
                 (val as number) === n
                   ? 'bg-[var(--accent)] border-[var(--accent)] text-white shadow-[0_4px_12px_rgba(59,130,246,.3)]'
                   : 'bg-[var(--bg)] border-[var(--border)] text-[var(--text2)] hover:border-[var(--accent)] hover:text-[var(--text)]'

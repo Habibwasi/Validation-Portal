@@ -38,7 +38,7 @@ export default function Dashboard() {
 
   if (loading) {
     return (
-      <div className="p-8 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+      <div className="p-4 sm:p-8 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         {[1,2,3,4,5,6].map((k) => <SkeletonCard key={k} />)}
       </div>
     );
@@ -74,7 +74,7 @@ export default function Dashboard() {
 
   return (
     <>
-    <div className="p-8">
+    <div className="p-4 sm:p-8">
       <PageHeader
         title={current.name}
         subtitle={current.description ?? "Here's what your data says so far."}
