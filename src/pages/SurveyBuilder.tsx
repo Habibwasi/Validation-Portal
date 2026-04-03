@@ -258,10 +258,10 @@ ${localQs.map((q) => `{ "id": "${q.id}", "label": ${JSON.stringify(q.label)} }`)
                 variant="secondary"
                 loading={momChecking}
                 onClick={onMomTest}
-                title="Check questions against Mom Test principles"
+                title="Check whether your questions are biased or leading — based on The Mom Test, the gold standard for customer discovery interviews"
               >
                 <ShieldCheck size={15} />
-                {momChecking ? 'Checking…' : 'Mom Test'}
+                {momChecking ? 'Checking…' : 'Check for bias'}
               </Button>
             )}
             <Button
@@ -322,11 +322,24 @@ ${localQs.map((q) => `{ "id": "${q.id}", "label": ${JSON.stringify(q.label)} }`)
           action={<Button variant="primary" onClick={() => setAddOpen(true)}><Plus size={14} /> Add question</Button>}
         />
       ) : (
-        <div className="mb-4 flex items-center justify-between">
-          <p className="text-[12px] text-[var(--text3)]">
-            {localQs.length} question{localQs.length !== 1 ? 's' : ''} — drag to reorder
-            {isDirty && <span className="ml-2 text-amber-400">Unsaved changes</span>}
-          </p>
+        <div className="mb-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <p className="text-[12px] text-[var(--text3)]">
+              {localQs.length} question{localQs.length !== 1 ? 's' : ''} — drag to reorder
+              {isDirty && <span className="ml-2 text-amber-400">Unsaved changes</span>}
+            </p>
+          </div>
+          {Object.keys(momResults).length > 0 && (
+            <div className="flex items-start gap-2.5 bg-[rgba(99,102,241,.06)] border border-[rgba(99,102,241,.2)] rounded-xl px-4 py-3">
+              <ShieldCheck size={14} className="text-[#818cf8] flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-[12px] font-semibold text-[#818cf8]">Bias check results</p>
+                <p className="text-[11px] text-[var(--text3)] mt-0.5 leading-relaxed">
+                  Based on <span className="text-[var(--text2)] font-medium">The Mom Test</span> — biased or leading questions make respondents give you the answer they think you want, not the truth. Red = biased wording that will produce false positives. Yellow = mild issue worth fixing.
+                </p>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -567,7 +580,7 @@ function SortableQuestion({
             {q.required && <Badge variant="neutral">Required</Badge>}
             {momResult?.score === 'good' && (
               <span className="inline-flex items-center gap-1 text-[11px] text-[#22c55e] font-semibold">
-                <CheckCircle2 size={11} /> Mom Test pass
+                <CheckCircle2 size={11} /> Unbiased
               </span>
             )}
           </div>
