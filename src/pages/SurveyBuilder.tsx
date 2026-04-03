@@ -17,7 +17,7 @@ import { supabase } from '@/lib/supabase';
 import { useProjectStore } from '@/store/projectStore';
 import type { Question, QuestionType, SurveyResponse } from '@/types';
 import { formatDate } from '@/lib/utils';
-import { REGIONS } from '@/types';
+import { REGIONS, SUPPORTED_LANGUAGES } from '@/types';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Card, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -87,6 +87,7 @@ export default function SurveyBuilder() {
       await Promise.all(toInsert.map((q) => supabase.from('questions').insert({
         project_id: id, type: q.type, label: q.label,
         required: q.required, options: q.options, display_order: q.display_order,
+        translations: q.translations,
       })));
 
       // Update existing questions
@@ -94,6 +95,7 @@ export default function SurveyBuilder() {
       await Promise.all(toUpdate.map((q) => supabase.from('questions').update({
         type: q.type, label: q.label, required: q.required,
         options: q.options, display_order: q.display_order,
+        translations: q.translations,
       }).eq('id', q.id)));
 
       await refreshDeps(id);
@@ -273,15 +275,22 @@ Focus on: problem pain level, current alternatives, willingness to pay, concept 
       <QuestionModal
         open={addOpen || !!editTarget}
         initial={editTarget}
+        enabledLangs={current?.settings?.enabled_languages ?? []}
         onClose={() => { setAddOpen(false); setEditTarget(null); }}
-        onSave={async (data) => {
+        onSave={async (data, translations) => {
           const opts = data.options
             ? data.options.split(',').map((s) => s.trim()).filter(Boolean)
             : null;
 
+          // Clean translations — remove entries with empty labels
+          const cleanedTrans = Object.fromEntries(
+            Object.entries(translations).filter(([, v]) => v.label.trim()),
+          ) as Record<string, { label: string; options?: string[] }>;
+          const finalTrans = Object.keys(cleanedTrans).length > 0 ? cleanedTrans : null;
+
           if (editTarget) {
             setLocalQs((prev) => prev.map((q) => q.id === editTarget.id
-              ? { ...q, type: data.type as QuestionType, label: data.label, required: data.required, options: opts }
+              ? { ...q, type: data.type as QuestionType, label: data.label, required: data.required, options: opts, translations: finalTrans }
               : q
             ));
           } else {
@@ -294,7 +303,7 @@ Focus on: problem pain level, current alternatives, willingness to pay, concept 
               required: data.required,
               options: opts,
               display_order: maxOrder + 1,
-              translations: null,
+              translations: finalTrans,
               created_at: new Date().toISOString(),
             };
             setLocalQs((prev) => [...prev, tempQ]);
@@ -476,17 +485,25 @@ interface QuestionModalProps {
   open: boolean;
   initial: Question | null;
   onClose: () => void;
-  onSave: (data: QForm) => Promise<void>;
+  onSave: (data: QForm, translations: Record<string, { label: string; options?: string[] }>) => Promise<void>;
   saving: boolean;
+  enabledLangs: string[];
 }
 
-function QuestionModal({ open, initial, onClose, onSave, saving }: QuestionModalProps) {
+function QuestionModal({ open, initial, onClose, onSave, saving, enabledLangs }: QuestionModalProps) {
   const { register, handleSubmit, watch, reset, formState: { errors } } = useForm<QForm>({
     resolver: zodResolver(qSchema),
     defaultValues: { type: 'text', required: true },
   });
+  const [localTranslations, setLocalTranslations] = useState<Record<string, { label: string; options?: string[] }>>({});
 
   useEffect(() => {
+    const initTrans: Record<string, { label: string; options?: string[] }> = {};
+    for (const lang of enabledLangs) {
+      const existing = initial?.translations?.[lang];
+      initTrans[lang] = { label: existing?.label ?? '', ...(existing?.options ? { options: existing.options } : {}) };
+    }
+    setLocalTranslations(initTrans);
     if (initial) {
       reset({
         type: initial.type,
@@ -502,6 +519,8 @@ function QuestionModal({ open, initial, onClose, onSave, saving }: QuestionModal
   const selectedType = watch('type') as QuestionType;
   const needsOptions = selectedType === 'choice' || selectedType === 'multi_choice';
 
+  const handleSave = handleSubmit((data: QForm) => onSave(data, localTranslations));
+
   return (
     <Modal
       open={open}
@@ -510,13 +529,13 @@ function QuestionModal({ open, initial, onClose, onSave, saving }: QuestionModal
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>Cancel</Button>
-          <Button variant="primary" loading={saving} onClick={handleSubmit(onSave)}>
+          <Button variant="primary" loading={saving} onClick={handleSave}>
             {initial ? 'Save changes' : 'Add question'}
           </Button>
         </>
       }
     >
-      <form className="flex flex-col gap-4" onSubmit={handleSubmit(onSave)}>
+      <form className="flex flex-col gap-4" onSubmit={handleSave}>
         <Select
           label="Question type"
           options={QUESTION_TYPES.map((t) => ({ value: t.value, label: `${t.label} — ${t.description}` }))}
@@ -544,6 +563,44 @@ function QuestionModal({ open, initial, onClose, onSave, saving }: QuestionModal
           <input type="checkbox" {...register('required')} className="w-auto" />
           Required question
         </label>
+
+        {enabledLangs.length > 0 && (
+          <div className="border border-[var(--border)] rounded-xl p-4 space-y-4 mt-1">
+            <div>
+              <p className="text-[11px] font-semibold text-[var(--text2)] uppercase tracking-wider">Translations</p>
+              <p className="text-[11px] text-[var(--text3)] mt-0.5">Edit translated text per language. Leave blank to fall back to auto-generated translation.</p>
+            </div>
+            {enabledLangs.map((langCode) => {
+              const lang = SUPPORTED_LANGUAGES.find((l) => l.code === langCode);
+              if (!lang) return null;
+              const trans = localTranslations[langCode] ?? { label: '' };
+              return (
+                <div key={langCode} className="space-y-2">
+                  <p className="text-[12px] font-medium text-[var(--text2)]">{lang.flag} {lang.label}</p>
+                  <Textarea
+                    placeholder={`Question in ${lang.label}…`}
+                    rows={2}
+                    value={trans.label}
+                    onChange={(e) => setLocalTranslations((prev) => ({
+                      ...prev,
+                      [langCode]: { ...prev[langCode], label: e.target.value },
+                    }))}
+                  />
+                  {needsOptions && (
+                    <Input
+                      placeholder={`Options in ${lang.label} (comma-separated)`}
+                      value={trans.options?.join(', ') ?? ''}
+                      onChange={(e) => setLocalTranslations((prev) => ({
+                        ...prev,
+                        [langCode]: { ...prev[langCode], options: e.target.value.split(',').map((s) => s.trim()).filter(Boolean) },
+                      }))}
+                    />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
       </form>
     </Modal>
   );
