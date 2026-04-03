@@ -403,8 +403,8 @@ function ResponseRow({ response: r, questions, onDelete }: {
             const display = Array.isArray(ans) ? ans.join(', ') : String(ans);
             return (
               <div key={q.id} className="flex gap-3">
-                <span className="text-[11px] text-[var(--text3)] w-40 flex-shrink-0 truncate" title={q.label}>{q.label}</span>
-                <span className="text-[12px] text-[var(--text)]">{display}</span>
+                <span className="text-[11px] text-[var(--text3)] w-24 sm:w-40 flex-shrink-0 truncate" title={q.label}>{q.label}</span>
+                <span className="text-[12px] text-[var(--text)] min-w-0 break-words">{display}</span>
               </div>
             );
           })}
@@ -436,31 +436,35 @@ function SortableQuestion({
     <div
       ref={setNodeRef}
       style={style}
-      className="bg-[var(--surface)] border border-[rgba(255,255,255,.04)] rounded-xl px-4 py-3 flex items-center gap-3 group hover:border-[rgba(59,130,246,.25)] transition-all"
+      className="bg-[var(--surface)] border border-[rgba(255,255,255,.04)] rounded-xl px-4 py-3 group hover:border-[rgba(59,130,246,.25)] transition-all"
     >
-      <div
-        {...attributes}
-        {...listeners}
-        className="text-[var(--text3)] hover:text-[var(--text2)] cursor-grab active:cursor-grabbing flex-shrink-0"
-      >
-        <GripVertical size={16} />
-      </div>
-      <div className="w-6 h-6 rounded-full bg-[var(--surface2)] text-[10px] font-bold text-[var(--text3)] flex items-center justify-center flex-shrink-0">
-        {index + 1}
-      </div>
-      <div className="flex-1 min-w-0">
-        <div className="font-medium text-[13px] truncate">{q.label}</div>
-        <div className="text-[11px] text-[var(--text3)] mt-0.5">{typeInfo?.description}</div>
-      </div>
-      <Badge variant={typeColors[q.type] as 'blue' | 'red' | 'yellow' | 'green' | 'purple'} className="flex-shrink-0">
-        {typeInfo?.label}
-      </Badge>
-      {q.required && <Badge variant="neutral" className="flex-shrink-0">Required</Badge>}
-      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-        <Button size="sm" variant="ghost" onClick={onEdit}>Edit</Button>
-        <Button size="sm" variant="ghost" onClick={onDelete} className="hover:text-[var(--red)]">
-          <Trash2 size={13} />
-        </Button>
+      <div className="flex items-center gap-3">
+        <div
+          {...attributes}
+          {...listeners}
+          className="text-[var(--text3)] hover:text-[var(--text2)] cursor-grab active:cursor-grabbing flex-shrink-0"
+        >
+          <GripVertical size={16} />
+        </div>
+        <div className="w-6 h-6 rounded-full bg-[var(--surface2)] text-[10px] font-bold text-[var(--text3)] flex items-center justify-center flex-shrink-0">
+          {index + 1}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="font-medium text-[13px] truncate">{q.label}</div>
+          <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+            <span className="text-[11px] text-[var(--text3)]">{typeInfo?.description}</span>
+            <Badge variant={typeColors[q.type] as 'blue' | 'red' | 'yellow' | 'green' | 'purple'}>
+              {typeInfo?.label}
+            </Badge>
+            {q.required && <Badge variant="neutral">Required</Badge>}
+          </div>
+        </div>
+        <div className="flex gap-1 flex-shrink-0 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+          <Button size="sm" variant="ghost" onClick={onEdit}>Edit</Button>
+          <Button size="sm" variant="ghost" onClick={onDelete} className="hover:text-[var(--red)]">
+            <Trash2 size={13} />
+          </Button>
+        </div>
       </div>
     </div>
   );
