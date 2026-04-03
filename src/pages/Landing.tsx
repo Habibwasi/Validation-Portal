@@ -63,9 +63,9 @@ function ProductPreview({ onPlay }: { onPlay: () => void }) {
         </div>
 
         {/* App content mock */}
-        <div className="bg-[var(--bg)] grid grid-cols-[200px_1fr] min-h-[340px]">
+        <div className="bg-[var(--bg)] grid grid-cols-1 sm:grid-cols-[200px_1fr] min-h-[200px] sm:min-h-[340px]">
           {/* Sidebar mock */}
-          <div className="bg-[var(--surface)] border-r border-[var(--border)] p-4 space-y-1">
+          <div className="hidden sm:block bg-[var(--surface)] border-r border-[var(--border)] p-4 space-y-1">
             <div className="text-[10px] font-black tracking-widest text-[var(--accent)] mb-4 px-2">VALIDATE</div>
             {['Dashboard', 'Interviews', 'Survey', 'Analysis'].map((item, i) => (
               <div
@@ -150,7 +150,7 @@ export default function Landing() {
   }
 
   return (
-    <div className="min-h-screen bg-[var(--bg)] text-[var(--text)]">
+    <div className="min-h-screen bg-[var(--bg)] text-[var(--text)] overflow-x-hidden">
       {videoOpen && <VideoModal onClose={() => setVideoOpen(false)} />}
 
       {/* Nav */}
@@ -177,13 +177,13 @@ export default function Landing() {
         <div className="inline-flex items-center gap-2 bg-[rgba(245,158,11,.1)] border border-[rgba(245,158,11,.2)] rounded-full px-4 py-1.5 text-[12px] text-[var(--accent)] font-medium mb-6">
           ✨ Free to use — no credit card needed
         </div>
-        <h1 className="text-[48px] md:text-[60px] font-black leading-[1.1] mb-6">
+        <h1 className="text-[32px] sm:text-[48px] md:text-[60px] font-black leading-[1.1] mb-6">
           Find out if your idea<br />
           <span className="text-transparent bg-clip-text bg-gradient-to-r from-[var(--accent)] to-[var(--accent2)]">
             is actually wanted
           </span>
         </h1>
-        <p className="text-[18px] text-[var(--text2)] max-w-xl mx-auto mb-10 leading-relaxed">
+        <p className="text-[15px] sm:text-[18px] text-[var(--text2)] max-w-xl mx-auto mb-10 leading-relaxed">
           Talk to real people, collect survey responses, and get an AI verdict on whether your startup idea has legs — before you spend months building it.
         </p>
         <div className="flex items-center justify-center gap-4 flex-wrap">
@@ -212,12 +212,12 @@ export default function Landing() {
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-0 rounded-2xl overflow-hidden border border-[var(--border)] shadow-[0_8px_40px_rgba(0,0,0,.3)]">
           {/* Without */}
-          <div className="bg-[rgba(239,68,68,.04)] border-r border-[var(--border)] p-8 md:p-10">
+          <div className="bg-[rgba(239,68,68,.04)] border-r border-[var(--border)] p-5 sm:p-8 md:p-10">
             <div className="flex items-center gap-2 mb-6">
               <div className="w-7 h-7 rounded-full bg-[rgba(239,68,68,.15)] flex items-center justify-center text-[14px]">✗</div>
               <span className="font-black text-[16px] text-[#ef4444]">Without Validate</span>
             </div>
-            <p className="text-[28px] md:text-[32px] font-black leading-tight text-[var(--text)] mb-6">
+            <p className="text-[24px] sm:text-[28px] md:text-[32px] font-black leading-tight text-[var(--text)] mb-6">
               6 months building<br />the wrong thing.
             </p>
             <ul className="space-y-3">
@@ -237,12 +237,12 @@ export default function Landing() {
           </div>
 
           {/* With */}
-          <div className="bg-[rgba(34,197,94,.04)] p-8 md:p-10">
+          <div className="bg-[rgba(34,197,94,.04)] p-5 sm:p-8 md:p-10">
             <div className="flex items-center gap-2 mb-6">
               <div className="w-7 h-7 rounded-full bg-[rgba(34,197,94,.15)] flex items-center justify-center text-[14px]">✓</div>
               <span className="font-black text-[16px] text-[#22c55e]">With Validate</span>
             </div>
-            <p className="text-[28px] md:text-[32px] font-black leading-tight text-[var(--text)] mb-6">
+            <p className="text-[24px] sm:text-[28px] md:text-[32px] font-black leading-tight text-[var(--text)] mb-6">
               2 weeks knowing<br />it's wanted.
             </p>
             <ul className="space-y-3">
@@ -356,7 +356,7 @@ export default function Landing() {
 
       {/* Final CTA */}
       <section className="max-w-5xl mx-auto px-6 py-16 text-center">
-        <h2 className="text-[36px] font-black mb-4">
+        <h2 className="text-[26px] sm:text-[36px] font-black mb-4">
           Stop guessing.<br />Start knowing.
         </h2>
         <p className="text-[16px] text-[var(--text2)] mb-8 max-w-md mx-auto">
