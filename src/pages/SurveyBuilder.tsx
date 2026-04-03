@@ -9,7 +9,7 @@ import {
   useSortable, arrayMove,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical, Plus, Trash2, Copy, ExternalLink, ChevronDown, ChevronRight, Wand2, Save } from 'lucide-react';
+import { GripVertical, Plus, Trash2, Copy, ExternalLink, ChevronDown, ChevronRight, Wand2, Save, ShieldCheck, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -66,6 +66,8 @@ export default function SurveyBuilder() {
   const [deletingResponse, setDeletingResponse] = useState(false);
   const [saveAll, setSaveAll] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
+  const [momChecking, setMomChecking] = useState(false);
+  const [momResults, setMomResults] = useState<Record<string, MomTestResult>>({});
 
   useEffect(() => {
     if (!isDirty) setLocalQs(questions);
@@ -116,17 +118,25 @@ export default function SurveyBuilder() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          prompt: `You are a startup validation expert. Generate 5 NEW survey questions to validate this product concept.
+          prompt: `You are a startup validation expert trained in The Mom Test by Rob Fitzpatrick. Generate 5 NEW survey questions to validate this product concept.
 
 Product name: ${current.name}
 Description: ${current.description}
 ${localQs.length > 0 ? `\nExisting questions (do NOT repeat or rephrase these):\n${localQs.map((q, i) => `${i + 1}. ${q.label}`).join('\n')}\n\nGenerate questions that cover different angles not already addressed above.` : ''}
 
+CRITICAL — all questions MUST follow The Mom Test rules:
+- Ask about PAST behaviour, not hypothetical futures ("Have you ever…" not "Would you…")
+- Never lead the respondent ("Do you find X frustrating?" → bad. "How do you currently handle X?" → good)
+- Never pitch the idea or ask for validation ("Would you use our app?" → forbidden)
+- Ask about real problems they have faced, how they currently solve them, and how much effort/money that costs
+- For rating/scale questions: measure how painful an existing, confirmed problem is — not whether they like your idea
+- For yes/no: ask about concrete past actions or current reality
+
 Return ONLY valid JSON:
 { "questions": [{ "type": "text|long_text|rating|scale|yes_no|choice|multi_choice", "label": "...", "required": true, "options": null }] }
 
 Available types: text, long_text, rating (pain 1-10), scale (1-10), yes_no, choice (needs options array), multi_choice (needs options array).
-Focus on: problem pain level, current alternatives, willingness to pay, concept interest, pilot readiness.`,
+Focus on: confirming the problem exists, measuring pain severity, understanding current workarounds, frequency of the problem, and who the real sufferer is.`,
         }),
       });
       if (!res.ok) {
@@ -159,6 +169,63 @@ Focus on: problem pain level, current alternatives, willingness to pay, concept 
     }
   };
 
+  const onMomTest = async () => {
+    if (localQs.length === 0) { toast.error('Add some questions first.'); return; }
+    setMomChecking(true);
+    try {
+      const res = await fetch('/api/analyse', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt: `You are an expert in The Mom Test by Rob Fitzpatrick — the gold standard for unbiased customer discovery.
+
+Score each survey question below against Mom Test principles. Judge the WORDING, not the question format (rating/scale/yes_no are all structurally valid).
+
+Flag questions when the WORDING is:
+- Leading: pushes toward a positive answer ("Don't you think…", "Wouldn't it be useful…", "How helpful would our solution be?" — the word "helpful" assumes it is helpful)
+- Hypothetical about the solution: asks what they WOULD do with your product ("Would you use…", "Would you pay for…", "How likely are you to use…") — unreliable future intent
+- Compliment-fishing or idea-validating: designed to make the founder feel good rather than surface real problems
+- Pitching: reveals/promotes the solution before asking about the problem
+- Future-focused in a biased way: "How valuable would X be?" assumes value exists
+
+Still flag a rating question if its wording is leading or solution-focused.
+For example: "How useful would this feature be? (1–10)" is BAD — it assumes the feature is useful.
+But: "How often do you experience [problem]? (1–10)" is GOOD — it measures an existing reality.
+
+For EACH question return:
+- score: "good" | "warning" (mild wording issue, small fix needed) | "bad" (biased wording, will produce false positives)
+- issue: one short sentence on the specific wording problem (null if good)
+- suggestion: a concrete rewritten version that fixes the bias (null if good)
+
+Return ONLY valid JSON:
+{ "results": [ { "id": "...", "score": "good"|"warning"|"bad", "issue": "..." | null, "suggestion": "..." | null } ] }
+
+Questions:
+${localQs.map((q) => `{ "id": "${q.id}", "label": ${JSON.stringify(q.label)} }`).join('\n')}`,
+        }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json() as { results?: MomTestResult[] };
+      if (!Array.isArray(data.results)) throw new Error('Unexpected response shape');
+      const map: Record<string, MomTestResult> = {};
+      for (const r of data.results) map[r.id] = r;
+      // Deliberately bypass the localQs-clearing effect by setting directly
+      setMomResults(map);
+      const bad = data.results.filter((r) => r.score === 'bad').length;
+      const warn = data.results.filter((r) => r.score === 'warning').length;
+      if (bad + warn === 0) {
+        toast.success('All questions pass the Mom Test ✓');
+      } else {
+        toast(`${bad} problematic · ${warn} warning${warn !== 1 ? 's' : ''} — see below`, { icon: '⚠️' });
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      toast.error(`Mom Test check failed: ${msg}`);
+    } finally {
+      setMomChecking(false);
+    }
+  };
+
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
@@ -186,6 +253,17 @@ Focus on: problem pain level, current alternatives, willingness to pay, concept 
         subtitle="Questions here become the public survey respondents fill out."
         actions={
           <div className="flex gap-2">
+            {localQs.length > 0 && (
+              <Button
+                variant="secondary"
+                loading={momChecking}
+                onClick={onMomTest}
+                title="Check whether your questions are biased or leading — based on The Mom Test, the gold standard for customer discovery interviews"
+              >
+                <ShieldCheck size={15} />
+                {momChecking ? 'Checking…' : 'Check for bias'}
+              </Button>
+            )}
             <Button
               variant="secondary"
               loading={generating}
@@ -244,11 +322,24 @@ Focus on: problem pain level, current alternatives, willingness to pay, concept 
           action={<Button variant="primary" onClick={() => setAddOpen(true)}><Plus size={14} /> Add question</Button>}
         />
       ) : (
-        <div className="mb-4 flex items-center justify-between">
-          <p className="text-[12px] text-[var(--text3)]">
-            {localQs.length} question{localQs.length !== 1 ? 's' : ''} — drag to reorder
-            {isDirty && <span className="ml-2 text-amber-400">Unsaved changes</span>}
-          </p>
+        <div className="mb-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <p className="text-[12px] text-[var(--text3)]">
+              {localQs.length} question{localQs.length !== 1 ? 's' : ''} — drag to reorder
+              {isDirty && <span className="ml-2 text-amber-400">Unsaved changes</span>}
+            </p>
+          </div>
+          {Object.keys(momResults).length > 0 && (
+            <div className="flex items-start gap-2.5 bg-[rgba(99,102,241,.06)] border border-[rgba(99,102,241,.2)] rounded-xl px-4 py-3">
+              <ShieldCheck size={14} className="text-[#818cf8] flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-[12px] font-semibold text-[#818cf8]">Bias check results</p>
+                <p className="text-[11px] text-[var(--text3)] mt-0.5 leading-relaxed">
+                  Based on <span className="text-[var(--text2)] font-medium">The Mom Test</span> — biased or leading questions make respondents give you the answer they think you want, not the truth. Red = biased wording that will produce false positives. Yellow = mild issue worth fixing.
+                </p>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -260,9 +351,11 @@ Focus on: problem pain level, current alternatives, willingness to pay, concept 
                 key={q.id}
                 question={q}
                 index={i}
+                momResult={momResults[q.id] ?? null}
                 onEdit={() => setEditTarget(q)}
                 onDelete={() => {
                   setLocalQs((prev) => prev.filter((r) => r.id !== q.id));
+                  setMomResults((prev) => { const next = { ...prev }; delete next[q.id]; return next; });
                   setIsDirty(true);
                 }}
               />
@@ -293,6 +386,8 @@ Focus on: problem pain level, current alternatives, willingness to pay, concept 
               ? { ...q, type: data.type as QuestionType, label: data.label, required: data.required, options: opts, translations: finalTrans }
               : q
             ));
+            // Clear only this question's Mom Test result since its label may have changed
+            setMomResults((prev) => { const next = { ...prev }; delete next[editTarget.id]; return next; });
           } else {
             const maxOrder = localQs.reduce((m, q) => Math.max(m, q.display_order), -1);
             const tempQ: Question = {
@@ -426,11 +521,20 @@ function ResponseRow({ response: r, questions, onDelete }: {
   );
 }
 
+// ── Mom Test types ───────────────────────────────────────────────────────────
+
+interface MomTestResult {
+  id: string;
+  score: 'good' | 'warning' | 'bad';
+  issue: string | null;
+  suggestion: string | null;
+}
+
 // ── Sortable Question Row ────────────────────────────────────────────────────
 
 function SortableQuestion({
-  question: q, index, onEdit, onDelete,
-}: { question: Question; index: number; onEdit: () => void; onDelete: () => void }) {
+  question: q, index, onEdit, onDelete, momResult,
+}: { question: Question; index: number; onEdit: () => void; onDelete: () => void; momResult: MomTestResult | null }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: q.id });
 
   const style = {
@@ -441,11 +545,19 @@ function SortableQuestion({
 
   const typeInfo = QUESTION_TYPES.find((t) => t.value === q.type);
 
+  const cardBorder = momResult?.score === 'bad'
+    ? 'border-[rgba(239,68,68,.4)] hover:border-[rgba(239,68,68,.6)]'
+    : momResult?.score === 'warning'
+      ? 'border-[rgba(251,191,36,.4)] hover:border-[rgba(251,191,36,.6)]'
+      : momResult?.score === 'good'
+        ? 'border-[rgba(34,197,94,.35)] hover:border-[rgba(34,197,94,.55)]'
+        : 'border-[rgba(255,255,255,.04)] hover:border-[rgba(59,130,246,.25)]';
+
   return (
     <div
       ref={setNodeRef}
       style={style}
-      className="bg-[var(--surface)] border border-[rgba(255,255,255,.04)] rounded-xl px-4 py-3 group hover:border-[rgba(59,130,246,.25)] transition-all"
+      className={`bg-[var(--surface)] border rounded-xl px-4 py-3 group transition-all ${cardBorder}`}
     >
       <div className="flex items-center gap-3">
         <div
@@ -466,6 +578,11 @@ function SortableQuestion({
               {typeInfo?.label}
             </Badge>
             {q.required && <Badge variant="neutral">Required</Badge>}
+            {momResult?.score === 'good' && (
+              <span className="inline-flex items-center gap-1 text-[11px] text-[#22c55e] font-semibold">
+                <CheckCircle2 size={11} /> Unbiased
+              </span>
+            )}
           </div>
         </div>
         <div className="flex gap-1 flex-shrink-0 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
@@ -475,6 +592,28 @@ function SortableQuestion({
           </Button>
         </div>
       </div>
+
+      {momResult && momResult.score !== 'good' && (
+        <div className={`mt-3 pt-3 border-t space-y-2 ${
+          momResult.score === 'bad' ? 'border-[rgba(239,68,68,.2)]' : 'border-[rgba(251,191,36,.2)]'
+        }`}>
+          <div className="flex items-start gap-2">
+            <AlertTriangle
+              size={13}
+              className={`flex-shrink-0 mt-0.5 ${momResult.score === 'bad' ? 'text-[#ef4444]' : 'text-[#fbbf24]'}`}
+            />
+            <p className={`text-[12px] font-medium leading-snug ${momResult.score === 'bad' ? 'text-[#ef4444]' : 'text-[#fbbf24]'}`}>
+              {momResult.issue}
+            </p>
+          </div>
+          {momResult.suggestion && (
+            <div className="ml-5 rounded-lg bg-[var(--surface2)] border border-[var(--border)] px-3 py-2">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--text3)] mb-1">Suggested rewrite</p>
+              <p className="text-[12px] text-[var(--text2)] italic">&ldquo;{momResult.suggestion}&rdquo;</p>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
