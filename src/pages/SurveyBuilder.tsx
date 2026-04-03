@@ -179,24 +179,23 @@ Focus on: confirming the problem exists, measuring pain severity, understanding 
         body: JSON.stringify({
           prompt: `You are an expert in The Mom Test by Rob Fitzpatrick — the gold standard for unbiased customer discovery.
 
-Score each survey question below against Mom Test principles. A survey context is different from a face-to-face interview: rating scales and yes/no questions are structurally fine — judge the WORDING, not the format.
+Score each survey question below against Mom Test principles. Judge the WORDING, not the question format (rating/scale/yes_no are all structurally valid).
 
-Flag questions only when the WORDING is:
-- Leading: pushes respondents toward a positive answer (e.g. "Don't you think…", "Wouldn't it be great if…", "How helpful would X be?" — implies it is helpful)
-- Hypothetical about the SOLUTION: asks what they WOULD do with your product ("Would you use…", "Would you pay for…") — these give unreliable answers
-- Compliment-fishing: designed to validate the founder's idea rather than uncover real problems
-- Pitching: reveals and promotes your solution before asking about the problem
+Flag questions when the WORDING is:
+- Leading: pushes toward a positive answer ("Don't you think…", "Wouldn't it be useful…", "How helpful would our solution be?" — the word "helpful" assumes it is helpful)
+- Hypothetical about the solution: asks what they WOULD do with your product ("Would you use…", "Would you pay for…", "How likely are you to use…") — unreliable future intent
+- Compliment-fishing or idea-validating: designed to make the founder feel good rather than surface real problems
+- Pitching: reveals/promotes the solution before asking about the problem
+- Future-focused in a biased way: "How valuable would X be?" assumes value exists
 
-Do NOT flag:
-- Past-behaviour questions ("Have you ever…", "How often do you…")
-- Problem-focused pain ratings ("How painful is [confirmed problem] for you? 1–10")
-- Questions about current workarounds or spending on existing solutions
-- Neutral scale/rating questions that measure a real problem's severity
+Still flag a rating question if its wording is leading or solution-focused.
+For example: "How useful would this feature be? (1–10)" is BAD — it assumes the feature is useful.
+But: "How often do you experience [problem]? (1–10)" is GOOD — it measures an existing reality.
 
 For EACH question return:
-- score: "good" (passes Mom Test) | "warning" (mild wording issue) | "bad" (will produce false positives / biased answers)
-- issue: one short sentence explaining the specific wording problem (null if good)
-- suggestion: a rewritten version that fixes the issue without changing the intent (null if good)
+- score: "good" | "warning" (mild wording issue, small fix needed) | "bad" (biased wording, will produce false positives)
+- issue: one short sentence on the specific wording problem (null if good)
+- suggestion: a concrete rewritten version that fixes the bias (null if good)
 
 Return ONLY valid JSON:
 { "results": [ { "id": "...", "score": "good"|"warning"|"bad", "issue": "..." | null, "suggestion": "..." | null } ] }
