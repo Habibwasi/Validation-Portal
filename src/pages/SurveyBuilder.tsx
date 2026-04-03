@@ -73,11 +73,6 @@ export default function SurveyBuilder() {
     if (!isDirty) setLocalQs(questions);
   }, [questions]);
 
-  // Clear Mom Test results whenever questions are edited so scores don't go stale
-  useEffect(() => {
-    if (!momChecking) setMomResults({});
-  }, [localQs]);
-
   const onSave = async () => {
     if (!id) return;
     setSaveAll(true);
@@ -123,17 +118,25 @@ export default function SurveyBuilder() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          prompt: `You are a startup validation expert. Generate 5 NEW survey questions to validate this product concept.
+          prompt: `You are a startup validation expert trained in The Mom Test by Rob Fitzpatrick. Generate 5 NEW survey questions to validate this product concept.
 
 Product name: ${current.name}
 Description: ${current.description}
 ${localQs.length > 0 ? `\nExisting questions (do NOT repeat or rephrase these):\n${localQs.map((q, i) => `${i + 1}. ${q.label}`).join('\n')}\n\nGenerate questions that cover different angles not already addressed above.` : ''}
 
+CRITICAL — all questions MUST follow The Mom Test rules:
+- Ask about PAST behaviour, not hypothetical futures ("Have you ever…" not "Would you…")
+- Never lead the respondent ("Do you find X frustrating?" → bad. "How do you currently handle X?" → good)
+- Never pitch the idea or ask for validation ("Would you use our app?" → forbidden)
+- Ask about real problems they have faced, how they currently solve them, and how much effort/money that costs
+- For rating/scale questions: measure how painful an existing, confirmed problem is — not whether they like your idea
+- For yes/no: ask about concrete past actions or current reality
+
 Return ONLY valid JSON:
 { "questions": [{ "type": "text|long_text|rating|scale|yes_no|choice|multi_choice", "label": "...", "required": true, "options": null }] }
 
 Available types: text, long_text, rating (pain 1-10), scale (1-10), yes_no, choice (needs options array), multi_choice (needs options array).
-Focus on: problem pain level, current alternatives, willingness to pay, concept interest, pilot readiness.`,
+Focus on: confirming the problem exists, measuring pain severity, understanding current workarounds, frequency of the problem, and who the real sufferer is.`,
         }),
       });
       if (!res.ok) {
@@ -176,17 +179,24 @@ Focus on: problem pain level, current alternatives, willingness to pay, concept 
         body: JSON.stringify({
           prompt: `You are an expert in The Mom Test by Rob Fitzpatrick — the gold standard for unbiased customer discovery.
 
-Score each survey question below against Mom Test principles. Flag questions that are:
-- Leading: push respondents toward a positive answer (e.g. "Don't you think…", "Wouldn't it be great if…")
-- Hypothetical: ask what someone WOULD do ("Would you use…", "Would you pay…") — unreliable
-- Compliment-fishing: designed to make the founder feel good rather than extract signal
-- Future-focused instead of past-focused (ask about past behaviour, not hypothetical futures)
-- Pitching the idea instead of exploring the problem
+Score each survey question below against Mom Test principles. A survey context is different from a face-to-face interview: rating scales and yes/no questions are structurally fine — judge the WORDING, not the format.
+
+Flag questions only when the WORDING is:
+- Leading: pushes respondents toward a positive answer (e.g. "Don't you think…", "Wouldn't it be great if…", "How helpful would X be?" — implies it is helpful)
+- Hypothetical about the SOLUTION: asks what they WOULD do with your product ("Would you use…", "Would you pay for…") — these give unreliable answers
+- Compliment-fishing: designed to validate the founder's idea rather than uncover real problems
+- Pitching: reveals and promotes your solution before asking about the problem
+
+Do NOT flag:
+- Past-behaviour questions ("Have you ever…", "How often do you…")
+- Problem-focused pain ratings ("How painful is [confirmed problem] for you? 1–10")
+- Questions about current workarounds or spending on existing solutions
+- Neutral scale/rating questions that measure a real problem's severity
 
 For EACH question return:
-- score: "good" (passes Mom Test) | "warning" (mild issue) | "bad" (will give false positives)
-- issue: one short sentence explaining the problem (null if good)
-- suggestion: a rewritten version that fixes the issue (null if good)
+- score: "good" (passes Mom Test) | "warning" (mild wording issue) | "bad" (will produce false positives / biased answers)
+- issue: one short sentence explaining the specific wording problem (null if good)
+- suggestion: a rewritten version that fixes the issue without changing the intent (null if good)
 
 Return ONLY valid JSON:
 { "results": [ { "id": "...", "score": "good"|"warning"|"bad", "issue": "..." | null, "suggestion": "..." | null } ] }
@@ -333,6 +343,7 @@ ${localQs.map((q) => `{ "id": "${q.id}", "label": ${JSON.stringify(q.label)} }`)
                 onEdit={() => setEditTarget(q)}
                 onDelete={() => {
                   setLocalQs((prev) => prev.filter((r) => r.id !== q.id));
+                  setMomResults((prev) => { const next = { ...prev }; delete next[q.id]; return next; });
                   setIsDirty(true);
                 }}
               />
@@ -363,6 +374,8 @@ ${localQs.map((q) => `{ "id": "${q.id}", "label": ${JSON.stringify(q.label)} }`)
               ? { ...q, type: data.type as QuestionType, label: data.label, required: data.required, options: opts, translations: finalTrans }
               : q
             ));
+            // Clear only this question's Mom Test result since its label may have changed
+            setMomResults((prev) => { const next = { ...prev }; delete next[editTarget.id]; return next; });
           } else {
             const maxOrder = localQs.reduce((m, q) => Math.max(m, q.display_order), -1);
             const tempQ: Question = {
