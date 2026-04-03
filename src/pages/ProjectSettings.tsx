@@ -374,7 +374,7 @@ export default function ProjectSettings() {
             <div className="flex-1">
               <div className="flex items-center gap-0 rounded-lg border border-[var(--border)] overflow-hidden bg-[var(--surface2)] focus-within:border-[var(--accent)] transition-colors">
                 <span className="px-3 text-[12px] text-[var(--text3)] whitespace-nowrap border-r border-[var(--border)] bg-[var(--bg)] py-2">
-                  {appBase}/s/
+                  /s/
                 </span>
                 <input
                   className="flex-1 bg-transparent px-3 py-2 text-[13px] text-[var(--text)] outline-none font-mono"

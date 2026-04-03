@@ -46,6 +46,26 @@ function useTheme() {
   return { theme, toggle: () => setTheme((t) => t === 'dark' ? 'light' : 'dark') };
 }
 
+// ── Mobile bottom nav item ───────────────────────────────────────────────────
+
+function MobileNavItem({ to, icon, label, end }: NavItemProps) {
+  return (
+    <NavLink
+      to={to}
+      end={end}
+      className={({ isActive }) =>
+        cn(
+          'flex-1 flex flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-medium transition-colors',
+          isActive ? 'text-[var(--accent)]' : 'text-[var(--text3)]',
+        )
+      }
+    >
+      {icon}
+      {label}
+    </NavLink>
+  );
+}
+
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { id } = useParams<{ id: string }>();
   const { current } = useProjectStore();
@@ -78,8 +98,38 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex min-h-screen">
-      {/* Sidebar */}
-      <aside className="w-56 flex-shrink-0 flex flex-col border-r border-[var(--border)] bg-[var(--bg2)] backdrop-blur-xl sticky top-0 h-screen overflow-y-auto">
+      {/* ── Mobile top bar ─────────────────────────────────────────────────── */}
+      <div className="md:hidden fixed top-0 left-0 right-0 z-40 h-12 bg-[var(--bg2)] border-b border-[var(--border)] flex items-center px-4 gap-2">
+        <button
+          onClick={() => id ? navigate('/app') : undefined}
+          className="font-black text-[13px] tracking-wider uppercase text-[var(--text)] flex-shrink-0"
+        >
+          Validate
+        </button>
+        {current && (
+          <>
+            <span className="text-[var(--text3)] text-[12px]">/</span>
+            <span className="text-[12px] text-[var(--text2)] truncate flex-1">{current.name}</span>
+          </>
+        )}
+        <div className="ml-auto flex items-center gap-1">
+          <button
+            onClick={toggleTheme}
+            className="p-2 rounded-lg text-[var(--text3)] hover:text-[var(--text)] hover:bg-[var(--surface2)] transition-all"
+          >
+            {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
+          </button>
+          <button
+            onClick={handleSignOut}
+            className="p-2 rounded-lg text-[var(--text3)] hover:text-[var(--red)] hover:bg-[rgba(239,68,68,.06)] transition-all"
+          >
+            <LogOut size={15} />
+          </button>
+        </div>
+      </div>
+
+      {/* ── Desktop Sidebar ─────────────────────────────────────────────────── */}
+      <aside className="hidden md:flex w-56 flex-shrink-0 flex-col border-r border-[var(--border)] bg-[var(--bg2)] backdrop-blur-xl sticky top-0 h-screen overflow-y-auto">
         {/* Logo */}
         <div className="px-4 py-5 border-b border-[var(--border)]">
           <div className="font-black text-[15px] tracking-wider text-[var(--text)] uppercase">
@@ -155,10 +205,25 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
       </aside>
 
-      {/* Main */}
-      <main className="flex-1 overflow-x-hidden">
+      {/* ── Main content ────────────────────────────────────────────────────── */}
+      <main className="flex-1 overflow-x-hidden pt-12 pb-20 md:pt-0 md:pb-0">
         {children}
       </main>
+
+      {/* ── Mobile bottom nav ───────────────────────────────────────────────── */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[var(--bg2)] border-t border-[var(--border)] flex items-stretch safe-bottom">
+        {id ? (
+          <>
+            <MobileNavItem to={`/p/${id}`} icon={<LayoutDashboard size={18} />} label="Dashboard" end />
+            <MobileNavItem to={`/p/${id}/survey`} icon={<MessageSquare size={18} />} label="Survey" />
+            <MobileNavItem to={`/p/${id}/interviews`} icon={<ClipboardList size={18} />} label="Interviews" />
+            <MobileNavItem to={`/p/${id}/analysis`} icon={<BarChart2 size={18} />} label="Results" />
+            <MobileNavItem to={`/p/${id}/settings`} icon={<Settings size={18} />} label="Settings" />
+          </>
+        ) : (
+          <MobileNavItem to="/app" icon={<FolderOpen size={18} />} label="My Ideas" end />
+        )}
+      </nav>
     </div>
   );
 }

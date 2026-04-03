@@ -105,7 +105,7 @@ export default function Projects() {
   const filtered = projects.filter((p) => p.archived === (filter === 'archived'));
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-8">
       <PageHeader
         title="Your Ideas"
         subtitle="Pick an idea to work on, or start validating a new one."

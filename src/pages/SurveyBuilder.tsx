@@ -178,7 +178,7 @@ Focus on: problem pain level, current alternatives, willingness to pay, concept 
   const surveyUrl = current ? `${appBase}/s/${current.slug}` : '';
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-8">
       <PageHeader
         title="Survey Builder"
         subtitle="Questions here become the public survey respondents fill out."
