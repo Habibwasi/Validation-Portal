@@ -26,12 +26,13 @@ const interviewSchema = z.object({
   quotes:         z.array(z.object({ text: z.string() })),
   tags_raw:       z.string().optional(), // comma-separated
   pain_scores:    z.record(z.string(), z.number()),
+  hypothesis_ids: z.array(z.string()),
 });
 type IForm = z.infer<typeof interviewSchema>;
 
 export default function Interviews() {
   const { id } = useParams<{ id: string }>();
-  const { questions, interviews, loading, refreshDeps } = useProjectStore();
+  const { questions, interviews, hypotheses, loading, refreshDeps } = useProjectStore();
   const [formOpen, setFormOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<Interview | null>(null);
   const [delTarget, setDelTarget] = useState<Interview | null>(null);
@@ -71,6 +72,7 @@ export default function Interviews() {
       quotes,
       tags,
       pain_scores: data.pain_scores,
+      hypothesis_ids: data.hypothesis_ids ?? [],
     };
 
     if (editTarget) {
@@ -155,6 +157,7 @@ export default function Interviews() {
         open={formOpen}
         initial={editTarget}
         painQuestions={painQuestions.map((q) => ({ id: q.id, label: q.label }))}
+        hypotheses={hypotheses.map((h, i) => ({ id: h.id, index: i, customer: h.customer, problem: h.problem }))}
         onClose={() => { setFormOpen(false); setEditTarget(null); }}
         onSave={onSave}
         saving={saving}
@@ -177,7 +180,7 @@ export default function Interviews() {
 function InterviewRow({ interview: i, onEdit, onDelete }: {
   interview: Interview; onEdit: () => void; onDelete: () => void;
 }) {
-  const { questions } = useProjectStore();
+  const { questions, hypotheses } = useProjectStore();
   const questionLabels = Object.fromEntries(questions.map((q) => [q.id, q.label]));
   const region = REGIONS.find((r) => r.code === i.region);
   const scores = Object.values(i.pain_scores) as number[];
@@ -203,6 +206,14 @@ function InterviewRow({ interview: i, onEdit, onDelete }: {
                 <CheckCircle size={10} /> Would use it
               </Badge>
             )}
+            {(i.hypothesis_ids ?? []).map((hId) => {
+              const hIdx = hypotheses.findIndex((h) => h.id === hId);
+              return hIdx >= 0 ? (
+                <span key={hId} className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[rgba(245,158,11,.12)] text-[var(--accent)] border border-[rgba(245,158,11,.2)]">
+                  H{hIdx + 1}
+                </span>
+              ) : null;
+            })}
           </div>
           <div className="text-[11px] text-[var(--text3)] mt-0.5">
             {formatDate(i.interviewed_at)}
@@ -277,18 +288,19 @@ interface IMProps {
   open: boolean;
   initial: Interview | null;
   painQuestions: { id: string; label: string }[];
+  hypotheses: { id: string; index: number; customer: string; problem: string }[];
   onClose: () => void;
   onSave: (d: IForm) => Promise<void>;
   saving: boolean;
 }
 
-function InterviewModal({ open, initial, painQuestions, onClose, onSave, saving }: IMProps) {
+function InterviewModal({ open, initial, painQuestions, hypotheses, onClose, onSave, saving }: IMProps) {
   const [showPrompts, setShowPrompts] = useState(true);
   const { register, handleSubmit, control, reset, watch, formState: { errors } } = useForm<IForm>({
     resolver: zodResolver(interviewSchema),
     defaultValues: {
       participant: '', region: '', interviewed_at: new Date().toISOString().slice(0, 10),
-      pilot_ready: false, notes: '', quotes: [], tags_raw: '', pain_scores: {},
+      pilot_ready: false, notes: '', quotes: [], tags_raw: '', pain_scores: {}, hypothesis_ids: [],
     },
   });
 
@@ -309,11 +321,12 @@ function InterviewModal({ open, initial, painQuestions, onClose, onSave, saving 
         quotes: initial.quotes.map((t) => ({ text: t })),
         tags_raw: initial.tags.join(', '),
         pain_scores: initial.pain_scores as Record<string, number>,
+        hypothesis_ids: initial.hypothesis_ids ?? [],
       });
     } else {
       reset({
         participant: '', region: '', interviewed_at: new Date().toISOString().slice(0, 10),
-        pilot_ready: false, notes: '', quotes: [], tags_raw: '', pain_scores: {},
+        pilot_ready: false, notes: '', quotes: [], tags_raw: '', pain_scores: {}, hypothesis_ids: [],
       });
     }
   }, [initial, open, reset]);
@@ -472,6 +485,31 @@ function InterviewModal({ open, initial, painQuestions, onClose, onSave, saving 
           hint="Comma-separated tags for filtering"
           {...register('tags_raw')}
         />
+
+        {/* Hypothesis linking */}
+        {hypotheses.length > 0 && (
+          <div>
+            <div className="text-[13px] font-medium text-[var(--text)] mb-1.5">
+              Which hypotheses did this test?
+            </div>
+            <div className="flex flex-col gap-2">
+              {hypotheses.map((h) => (
+                <label key={h.id} className="flex items-start gap-2.5 cursor-pointer group">
+                  <input
+                    type="checkbox"
+                    value={h.id}
+                    className="mt-0.5 accent-[var(--accent)]"
+                    {...register('hypothesis_ids')}
+                  />
+                  <span className="text-[12px] text-[var(--text2)] leading-snug group-hover:text-[var(--text)] transition-colors">
+                    <span className="text-[11px] font-bold text-[var(--accent)] mr-1.5">H{h.index + 1}</span>
+                    {h.customer} · {h.problem}
+                  </span>
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
 
         <Textarea label="Notes"
           tooltip="Private notes for yourself — follow-up questions, unusual context, or anything that doesn't fit elsewhere. These are not sent to the AI."

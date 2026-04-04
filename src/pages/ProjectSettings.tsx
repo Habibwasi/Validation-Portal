@@ -40,6 +40,7 @@ export default function ProjectSettings() {
   const [slugSaving, setSlugSaving] = useState(false);
   const [slugError, setSlugError] = useState('');
   const [syncedSlug, setSyncedSlug] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'general' | 'survey' | 'analytics' | 'languages' | 'danger'>('general');
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -185,9 +186,36 @@ export default function ProjectSettings() {
         subtitle="Configure how your survey works and which questions map to your validation metrics"
       />
 
+      {/* Tab bar */}
+      <div className="flex gap-1 bg-[var(--surface)] border border-[var(--border)] rounded-xl p-1 w-full mb-6 overflow-x-auto">
+        {([
+          ['general',   'General'],
+          ['survey',    'Survey'],
+          ['analytics', 'Analytics'],
+          ['languages', 'Languages'],
+          ['danger',    'Danger'],
+        ] as const).map(([key, label]) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => setActiveTab(key)}
+            className={`flex-1 min-w-fit px-3 py-1.5 rounded-lg text-[12px] font-semibold transition-all whitespace-nowrap ${
+              activeTab === key
+                ? key === 'danger'
+                  ? 'bg-[rgba(239,68,68,.12)] text-[var(--red)] border border-[rgba(239,68,68,.25)]'
+                  : 'bg-gradient-to-r from-[var(--accent)] to-[var(--accent2)] text-white shadow-[0_4px_12px_rgba(245,158,11,.3)]'
+                : 'text-[var(--text2)] hover:text-[var(--text)]'
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
 
         {/* Idea Details */}
+        {activeTab === 'general' && (
         <Card accent="orange" className="p-5">
           <CardTitle>Idea Details</CardTitle>
           <p className="text-[12px] text-[var(--text3)] mb-4">
@@ -210,8 +238,10 @@ export default function ProjectSettings() {
             />
           </div>
         </Card>
+        )}
 
         {/* Metric Mapping */}
+        {activeTab === 'analytics' && (
         <Card accent="blue" className="p-5">
           <CardTitle>Metric Mapping</CardTitle>
           <p className="text-[12px] text-[var(--text3)] mb-4">
@@ -279,8 +309,10 @@ export default function ProjectSettings() {
             />
           </div>
         </Card>
+        )}
 
         {/* Survey Text */}
+        {activeTab === 'survey' && (
         <Card accent="green" className="p-5">
           <CardTitle>Survey Copy</CardTitle>
           <p className="text-[12px] text-[var(--text3)] mb-4">
@@ -305,8 +337,10 @@ export default function ProjectSettings() {
             />
           </div>
         </Card>
+        )}
 
         {/* Survey Languages */}
+        {activeTab === 'languages' && (
         <Card accent="blue" className="p-5">
           <CardTitle>Survey Languages</CardTitle>
           <p className="text-[12px] text-[var(--text3)] mb-4">
@@ -363,8 +397,10 @@ export default function ProjectSettings() {
             </p>
           </div>
         </Card>
+        )}
 
         {/* Survey Link */}
+        {activeTab === 'survey' && (
         <Card accent="purple" className="p-5">
           <CardTitle>Public Survey Link</CardTitle>
           <p className="text-[12px] text-[var(--text3)] mb-4">
@@ -400,14 +436,18 @@ export default function ProjectSettings() {
             </Button>
           </div>
         </Card>
+        )}
 
+        {activeTab !== 'danger' && (
         <div className="flex justify-end">
           <Button variant="primary" type="submit" loading={saving}>
             Save Settings
           </Button>
         </div>
+        )}
 
         {/* Danger zone */}
+        {activeTab === 'danger' && (
         <Card accent="red" className="p-5">
           <CardTitle>Danger Zone</CardTitle>
           <p className="text-[12px] text-[var(--text3)] mb-4">
@@ -424,6 +464,7 @@ export default function ProjectSettings() {
             Archive Project
           </Button>
         </Card>
+        )}
       </form>
     </div>
   );

@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { EmptyState, SkeletonAnalysis } from '@/components/ui/EmptyState';
 import toast from 'react-hot-toast';
-import { Brain, RefreshCw, AlertTriangle, Download, Link2 } from 'lucide-react';
+import { Brain, RefreshCw, AlertTriangle, Download, Link2, Lightbulb, CheckCircle2, XCircle, HelpCircle } from 'lucide-react';
 
 const VERDICT_META: Record<string, { label: string; color: string; badgeVariant: 'green' | 'yellow' | 'red' | 'blue' }> = {
   'Strong Signal': { label: 'Strong Signal', color: 'var(--green)', badgeVariant: 'green' },
@@ -27,7 +27,7 @@ const STRENGTH_META: Record<string, { variant: 'green' | 'yellow' | 'red'; label
 
 export default function Analysis() {
   const { id } = useParams<{ id: string }>();
-  const { current: project, interviews, surveys, questions, getDashboardStats } = useProjectStore();
+  const { current: project, interviews, surveys, questions, hypotheses, refreshDeps, getDashboardStats } = useProjectStore();
 
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [cacheId, setCacheId] = useState<string | null>(null);
@@ -69,7 +69,7 @@ export default function Analysis() {
     const stats = getDashboardStats();
 
     try {
-      const analysis = await generateAnalysis(project.name, stats, interviews);
+      const analysis = await generateAnalysis(project.name, stats, interviews, hypotheses.length > 0 ? hypotheses : undefined);
       setResult(analysis);
 
       const { data } = await supabase
@@ -85,6 +85,22 @@ export default function Analysis() {
     } finally {
       setGenerating(false);
     }
+  };
+
+  const [applyingVerdicts, setApplyingVerdicts] = useState(false);
+
+  const applyVerdicts = async () => {
+    if (!result?.hypothesis_verdicts || !id) return;
+    setApplyingVerdicts(true);
+    const updates = result.hypothesis_verdicts.filter((v) => v.status !== 'uncertain');
+    await Promise.all(
+      updates.map((v) =>
+        supabase.from('hypotheses').update({ status: v.status }).eq('id', v.id)
+      )
+    );
+    await refreshDeps(id);
+    setApplyingVerdicts(false);
+    toast.success(`${updates.length} hypothesis status${updates.length !== 1 ? 'es' : ''} updated`);
   };
 
   const totalData = interviews.length + surveys.length;
@@ -399,6 +415,59 @@ export default function Analysis() {
               </section>
             )}
           </div>
+
+          {/* Hypothesis Assessment */}
+          {result.hypothesis_verdicts && result.hypothesis_verdicts.length > 0 && (
+            <section>
+              <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
+                <h2 className="font-bold text-[13px] uppercase tracking-wider text-[var(--text3)]">Hypothesis assessment</h2>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  loading={applyingVerdicts}
+                  onClick={applyVerdicts}
+                >
+                  <Lightbulb size={13} className="mr-1.5" />
+                  Apply verdicts
+                </Button>
+              </div>
+              <div className="space-y-3">
+                {result.hypothesis_verdicts.map((v) => {
+                  const h = hypotheses.find((x) => x.id === v.id);
+                  const idx = hypotheses.findIndex((x) => x.id === v.id);
+                  const Icon = v.status === 'supported' ? CheckCircle2 : v.status === 'disproved' ? XCircle : HelpCircle;
+                  const iconColor = v.status === 'supported' ? 'var(--green)' : v.status === 'disproved' ? 'var(--red)' : 'var(--text3)';
+                  const cardBg = v.status === 'supported' ? 'bg-[rgba(34,197,94,.04)] border-[rgba(34,197,94,.15)]' : v.status === 'disproved' ? 'bg-[rgba(239,68,68,.04)] border-[rgba(239,68,68,.15)]' : '';
+                  const confColor = v.confidence === 'high' ? 'text-[var(--green)]' : v.confidence === 'medium' ? 'text-[var(--yellow)]' : 'text-[var(--text3)]';
+                  return (
+                    <Card key={v.id} className={`p-4 ${cardBg}`}>
+                      <div className="flex items-start gap-3">
+                        <Icon size={17} style={{ color: iconColor }} className="flex-shrink-0 mt-0.5" />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap mb-1">
+                            {h && (
+                              <span className="text-[11px] font-bold text-[var(--text3)]">H{idx + 1}</span>
+                            )}
+                            <span className="text-[13px] font-semibold text-[var(--text)] capitalize">{v.status}</span>
+                            <span className={`text-[11px] font-medium ${confColor}`}>{v.confidence} confidence</span>
+                          </div>
+                          {h && (
+                            <p className="text-[11px] text-[var(--text3)] mb-1.5 italic">
+                              "{h.customer} · {h.problem}{h.price ? ` · ${h.price}` : ''} · {h.solution}"
+                            </p>
+                          )}
+                          <p className="text-[13px] text-[var(--text2)]">{v.reasoning}</p>
+                          {v.evidence && (
+                            <p className="mt-1.5 text-[12px] text-[var(--text3)] border-l-2 border-[var(--border)] pl-2 italic">{v.evidence}</p>
+                          )}
+                        </div>
+                      </div>
+                    </Card>
+                  );
+                })}
+              </div>
+            </section>
+          )}
 
           <p className="text-center text-[11px] text-[var(--text3)] no-print">
             Powered by Groq AI · Based on your current data · <button className="text-[var(--accent2)] hover:underline" onClick={() => generate(true)}>Run again</button>

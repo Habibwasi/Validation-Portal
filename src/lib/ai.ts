@@ -1,9 +1,10 @@
-import type { DashboardStats, AnalysisResult, Interview } from '@/types';
+import type { DashboardStats, AnalysisResult, Interview, Hypothesis } from '@/types';
 
 function buildPrompt(
   projectName: string,
   stats: DashboardStats,
   interviews: Interview[],
+  hypotheses?: Hypothesis[],
 ): string {
   const painSummary = stats.painAverages
     .map((p) => `  - "${p.label}": avg ${p.avg.toFixed(1)}/10 (${p.count} data points)`)
@@ -30,6 +31,12 @@ function buildPrompt(
     .map(([t, c]) => `${t}(${c})`)
     .join(', ');
 
+  const hypothesisSection = hypotheses && hypotheses.length > 0
+    ? `\n## Hypotheses to assess\n\n${hypotheses.map((h, i) =>
+        `H${i + 1} [id:${h.id}]: I believe ${h.customer} has ${h.problem}${h.price ? ` and will pay ${h.price}` : ''} for ${h.solution}.`
+      ).join('\n')}\n`
+    : '';
+
   return `You are a startup validation analyst. Analyse the following research data for the project "${projectName}" and return a structured JSON assessment.
 
 ## Data
@@ -49,7 +56,7 @@ ${regionSummary || '  (no region data yet)'}
 Most common tags: ${topTags || '(none)'}
 
 Sample quotes from interviews:
-${sampleQuotes || '  (no quotes yet)'}
+${sampleQuotes || '  (no quotes yet)'}${hypothesisSection}
 
 ## Instructions
 
@@ -69,7 +76,10 @@ Return ONLY valid JSON in this exact shape — no markdown, no explanation:
   ],
   "key_quotes": ["quote 1", "quote 2", "quote 3"],
   "next_steps": ["actionable step 1", "actionable step 2", "actionable step 3"],
-  "warnings": ["risk or gap 1", "risk or gap 2"]
+  "warnings": ["risk or gap 1", "risk or gap 2"]${hypotheses && hypotheses.length > 0 ? `,
+  "hypothesis_verdicts": [
+    { "id": "<hypothesis uuid>", "status": "supported" | "disproved" | "uncertain", "confidence": "high" | "medium" | "low", "reasoning": "1-2 sentences referencing specific evidence", "evidence": "specific quote or stat, or null" }
+  ]` : ''}
 }
 
 Rules:
@@ -78,7 +88,9 @@ Rules:
 - verdict "Too Early" if fewer than 5 total data points
 - verdict "No Signal" if pain and interest are both low
 - Include 2-4 themes, 2-4 key_quotes, 2-4 next_steps, 1-3 warnings
-- Be brutally honest, do not hype findings
+- Be brutally honest, do not hype findings${hypotheses && hypotheses.length > 0 ? `
+- For each hypothesis, evaluate whether the evidence supports or disproves it. Use "uncertain" when evidence is insufficient
+- hypothesis_verdicts array must have exactly ${hypotheses.length} entries, one per hypothesis in the same order` : ''}
 `;
 }
 
@@ -86,8 +98,9 @@ export async function generateAnalysis(
   projectName: string,
   stats: DashboardStats,
   interviews: Interview[],
+  hypotheses?: Hypothesis[],
 ): Promise<AnalysisResult> {
-  const prompt = buildPrompt(projectName, stats, interviews);
+  const prompt = buildPrompt(projectName, stats, interviews, hypotheses);
 
   const res = await fetch('/api/analyse', {
     method: 'POST',

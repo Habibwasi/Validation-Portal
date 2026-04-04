@@ -179,3 +179,36 @@ drop policy if exists "analysis_cache: anon read" on "analysis_cache";
 create policy "analysis_cache: anon read"
   on "analysis_cache" for select
   using (true);
+
+-- ── Hypotheses ────────────────────────────────────────────────────────────────
+
+create table if not exists hypotheses (
+  id            uuid primary key default gen_random_uuid(),
+  project_id    uuid not null references projects(id) on delete cascade,
+  customer      text not null,
+  problem       text not null,
+  price         text,
+  solution      text not null,
+  notes         text,
+  status        text not null default 'untested'
+                  check (status in ('untested','supported','disproved','pivoted')),
+  display_order int not null default 0,
+  created_at    timestamptz not null default now()
+);
+
+create index if not exists idx_hypotheses_project on hypotheses(project_id, display_order);
+
+alter table hypotheses enable row level security;
+
+drop policy if exists "hypotheses: project owner all" on "hypotheses";
+create policy "hypotheses: project owner all"
+  on "hypotheses" for all
+  using (
+    project_id in (select id from "projects" where user_id = auth.uid())
+  )
+  with check (
+    project_id in (select id from "projects" where user_id = auth.uid())
+  );
+
+-- Migration: add hypothesis_ids to interviews (safe to run on existing DB)
+alter table interviews add column if not exists hypothesis_ids text[] not null default '{}';

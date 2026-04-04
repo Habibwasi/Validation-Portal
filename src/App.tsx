@@ -12,6 +12,7 @@ import Dashboard from '@/pages/Dashboard';
 import SurveyBuilder from '@/pages/SurveyBuilder';
 import Interviews from '@/pages/Interviews';
 import Analysis from '@/pages/Analysis';
+import Hypotheses from '@/pages/Hypotheses';
 import ProjectSettings from '@/pages/ProjectSettings';
 import PublicSurvey from '@/pages/PublicSurvey';
 import PublicAnalysis from '@/pages/PublicAnalysis';
@@ -94,6 +95,7 @@ export default function App() {
               <Route path="survey" element={<SurveyBuilder />} />
               <Route path="interviews" element={<Interviews />} />
               <Route path="analysis" element={<Analysis />} />
+              <Route path="hypotheses" element={<Hypotheses />} />
               <Route path="settings" element={<ProjectSettings />} />
             </Route>
           </Route>

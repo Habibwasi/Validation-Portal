@@ -347,7 +347,7 @@ ${localQs.map((q) => `{ "id": "${q.id}", "label": ${JSON.stringify(q.label)} }`)
         <SortableContext items={localQs.map((q) => q.id)} strategy={verticalListSortingStrategy}>
           <div className="flex flex-col gap-2">
             {localQs.map((q, i) => (
-              <SortableQuestion
+               <SortableQuestion
                 key={q.id}
                 question={q}
                 index={i}

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { supabase } from '@/lib/supabase';
-import type { Project, Question, Interview, SurveyResponse, DashboardStats } from '@/types';
+import type { Project, Question, Interview, SurveyResponse, DashboardStats, Hypothesis } from '@/types';
 import { avg, pct } from '@/lib/utils';
 
 interface ProjectStore {
@@ -9,10 +9,12 @@ interface ProjectStore {
   questions: Question[];
   interviews: Interview[];
   surveys: SurveyResponse[];
+  hypotheses: Hypothesis[];
   loading: boolean;
 
   setCurrent: (p: Project | null) => void;
   setProjects: (ps: Project[]) => void;
+  setHypotheses: (hs: Hypothesis[]) => void;
   loadProject: (id: string) => Promise<void>;
   refreshDeps: (projectId: string) => Promise<void>;
   getDashboardStats: () => DashboardStats;
@@ -24,10 +26,12 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   questions: [],
   interviews: [],
   surveys: [],
+  hypotheses: [],
   loading: false,
 
   setCurrent: (p) => set({ current: p }),
   setProjects: (ps) => set({ projects: ps }),
+  setHypotheses: (hs) => set({ hypotheses: hs }),
 
   loadProject: async (id) => {
     set({ loading: true });
@@ -38,15 +42,17 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   },
 
   refreshDeps: async (projectId) => {
-    const [qRes, iRes, sRes] = await Promise.all([
+    const [qRes, iRes, sRes, hRes] = await Promise.all([
       supabase.from('questions').select('*').eq('project_id', projectId).order('display_order'),
       supabase.from('interviews').select('*').eq('project_id', projectId).order('interviewed_at', { ascending: false }),
       supabase.from('survey_responses').select('*').eq('project_id', projectId).order('submitted_at', { ascending: false }),
+      supabase.from('hypotheses').select('*').eq('project_id', projectId).order('display_order'),
     ]);
     set({
       questions: qRes.data ?? [],
       interviews: iRes.data ?? [],
       surveys: sRes.data ?? [],
+      hypotheses: hRes.data ?? [],
     });
   },
 

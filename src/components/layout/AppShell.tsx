@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { NavLink, useParams, useNavigate, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, MessageSquare, ClipboardList, BarChart2,
-  ChevronLeft, ChevronDown, LogOut, FolderOpen, Settings, Sun, Moon
+  ChevronLeft, ChevronDown, LogOut, FolderOpen, Settings, Sun, Moon, Lightbulb
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useProjectStore } from '@/store/projectStore';
@@ -114,6 +114,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </>
         )}
         <div className="ml-auto flex items-center gap-1">
+          {id && (
+            <button
+              onClick={() => navigate(`/p/${id}/settings`)}
+              className="p-2 rounded-lg text-[var(--text3)] hover:text-[var(--text)] hover:bg-[var(--surface2)] transition-all"
+            >
+              <Settings size={15} />
+            </button>
+          )}
           <button
             onClick={toggleTheme}
             className="p-2 rounded-lg text-[var(--text3)] hover:text-[var(--text)] hover:bg-[var(--surface2)] transition-all"
@@ -178,6 +186,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           {id ? (
             <>
               <NavItem to={`/p/${id}`} icon={<LayoutDashboard size={15} />} label="Dashboard" end />
+              <NavItem to={`/p/${id}/hypotheses`} icon={<Lightbulb size={15} />} label="Hypotheses" />
               <NavItem to={`/p/${id}/survey`} icon={<MessageSquare size={15} />} label="Survey Builder" />
               <NavItem to={`/p/${id}/interviews`} icon={<ClipboardList size={15} />} label="Conversations" />
               <NavItem to={`/p/${id}/analysis`} icon={<BarChart2 size={15} />} label="My Results" />
@@ -220,7 +229,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <MobileNavItem to={`/p/${id}/survey`} icon={<MessageSquare size={18} />} label="Survey" />
             <MobileNavItem to={`/p/${id}/interviews`} icon={<ClipboardList size={18} />} label="Interviews" />
             <MobileNavItem to={`/p/${id}/analysis`} icon={<BarChart2 size={18} />} label="Results" />
-            <MobileNavItem to={`/p/${id}/settings`} icon={<Settings size={18} />} label="Settings" />
+            <MobileNavItem to={`/p/${id}/hypotheses`} icon={<Lightbulb size={18} />} label="Hypotheses" />
           </>
         ) : (
           <MobileNavItem to="/app" icon={<FolderOpen size={18} />} label="My Ideas" end />

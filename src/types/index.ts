@@ -48,6 +48,7 @@ export interface Interview {
   tags: string[];
   notes: string | null;
   pilot_ready: boolean;
+  hypothesis_ids: string[]; // hypothesis IDs tested in this interview
   created_at: string;
 }
 
@@ -74,6 +75,7 @@ export interface AnalysisResult {
   key_quotes: string[];
   next_steps: string[];
   warnings: string[];
+  hypothesis_verdicts?: HypothesisVerdict[];
 }
 
 export interface AnalysisTheme {
@@ -81,6 +83,31 @@ export interface AnalysisTheme {
   description: string;
   evidence: string;
   strength: 'high' | 'medium' | 'low';
+}
+
+// ─── Hypothesis types ──────────────────────────────────────────────────────
+
+export type HypothesisStatus = 'untested' | 'supported' | 'disproved' | 'pivoted';
+
+export interface Hypothesis {
+  id: string;
+  project_id: string;
+  customer: string;
+  problem: string;
+  price: string | null;
+  solution: string;
+  notes: string | null;
+  status: HypothesisStatus;
+  display_order: number;
+  created_at: string;
+}
+
+export interface HypothesisVerdict {
+  id: string; // hypothesis id
+  status: 'supported' | 'disproved' | 'uncertain';
+  confidence: 'high' | 'medium' | 'low';
+  reasoning: string;
+  evidence: string | null;
 }
 
 // ─── Region codes ──────────────────────────────────────────────────────────
