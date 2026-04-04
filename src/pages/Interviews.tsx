@@ -487,7 +487,7 @@ function InterviewModal({ open, initial, painQuestions, hypotheses, onClose, onS
         />
 
         {/* Hypothesis linking */}
-        {hypotheses.length > 0 && (
+        {hypotheses.length > 0 ? (
           <div>
             <div className="text-[13px] font-medium text-[var(--text)] mb-1.5">
               Which hypotheses did this test?
@@ -509,6 +509,10 @@ function InterviewModal({ open, initial, painQuestions, hypotheses, onClose, onS
               ))}
             </div>
           </div>
+        ) : (
+          <p className="text-[12px] text-[var(--text3)] italic">
+            You haven't added any hypotheses yet. Add them on the Hypotheses page to link them to conversations.
+          </p>
         )}
 
         <Textarea label="Notes"
