@@ -9,7 +9,8 @@ import {
   useSortable, arrayMove,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical, Plus, Trash2, Copy, ExternalLink, ChevronDown, ChevronRight, Wand2, Save, ShieldCheck, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { GripVertical, Plus, Trash2, Copy, ExternalLink, ChevronDown, ChevronRight, Wand2, Save, ShieldCheck, AlertTriangle, CheckCircle2, QrCode } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -245,6 +246,19 @@ ${localQs.map((q) => `{ "id": "${q.id}", "label": ${JSON.stringify(q.label)} }`)
 
   const appBase = (import.meta.env.VITE_APP_URL as string | undefined)?.replace(/\/$/, '') ?? window.location.origin;
   const surveyUrl = current ? `${appBase}/s/${current.slug}` : '';
+  const [qrOpen, setQrOpen] = useState(false);
+
+  const downloadQr = () => {
+    const svg = document.getElementById('survey-qr-svg');
+    if (!svg) return;
+    const xml = new XMLSerializer().serializeToString(svg);
+    const blob = new Blob([xml], { type: 'image/svg+xml' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `${current?.slug ?? 'survey'}-qr.svg`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
 
   return (
     <div className="p-4 sm:p-8">
@@ -305,6 +319,13 @@ ${localQs.map((q) => `{ "id": "${q.id}", "label": ${JSON.stringify(q.label)} }`)
               onClick={() => window.open(surveyUrl, '_blank')}
             >
               <ExternalLink size={13} /> Preview
+            </Button>
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => setQrOpen(true)}
+            >
+              <QrCode size={13} /> QR Code
             </Button>
           </div>
           <p className="text-[11px] text-[var(--text3)] mt-2">
@@ -463,6 +484,35 @@ ${localQs.map((q) => `{ "id": "${q.id}", "label": ${JSON.stringify(q.label)} }`)
         message="Delete this survey response? This cannot be undone."
         loading={deletingResponse}
       />
+
+      {/* QR Code modal */}
+      <Modal open={qrOpen} onClose={() => setQrOpen(false)} title="📱 Survey QR Code">
+        <div className="flex flex-col items-center gap-5">
+          <p className="text-[12px] text-[var(--text2)] text-center">
+            Let people scan this with their phone to open the survey directly — no typing needed.
+          </p>
+          <div className="bg-white p-4 rounded-2xl shadow-[0_8px_30px_rgba(0,0,0,.3)]">
+            <QRCodeSVG
+              id="survey-qr-svg"
+              value={surveyUrl}
+              size={220}
+              bgColor="#ffffff"
+              fgColor="#0f172a"
+              level="M"
+              includeMargin={false}
+            />
+          </div>
+          <p className="text-[11px] text-[var(--text3)] text-center break-all max-w-xs">{surveyUrl}</p>
+          <div className="flex gap-2">
+            <Button size="sm" variant="secondary" onClick={() => { navigator.clipboard.writeText(surveyUrl); toast.success('Link copied!'); }}>
+              <Copy size={13} /> Copy link
+            </Button>
+            <Button size="sm" variant="primary" onClick={downloadQr}>
+              ⬇ Download SVG
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }
