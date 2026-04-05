@@ -232,7 +232,7 @@ function InterviewRow({ interview: i, onEdit, onDelete }: {
           </div>
         )}
 
-        <div className="flex gap-1">
+        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
           <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); onEdit(); }}>
             <Edit2 size={13} />
           </Button>
