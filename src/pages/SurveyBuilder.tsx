@@ -492,7 +492,7 @@ function ResponseRow({ response: r, questions, onDelete }: {
         </button>
         <Button
           size="sm" variant="ghost"
-          className="opacity-0 group-hover:opacity-100 transition-opacity hover:text-[var(--red)]"
+          className="hover:text-[var(--red)]"
           onClick={onDelete}
         >
           <Trash2 size={13} />
@@ -585,7 +585,7 @@ function SortableQuestion({
             )}
           </div>
         </div>
-        <div className="flex gap-1 flex-shrink-0 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+        <div className="flex gap-1 flex-shrink-0">
           <Button size="sm" variant="ghost" onClick={onEdit}>Edit</Button>
           <Button size="sm" variant="ghost" onClick={onDelete} className="hover:text-[var(--red)]">
             <Trash2 size={13} />
