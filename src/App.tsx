@@ -15,6 +15,7 @@ import Analysis from '@/pages/Analysis';
 import ProjectSettings from '@/pages/ProjectSettings';
 import PublicSurvey from '@/pages/PublicSurvey';
 import PublicAnalysis from '@/pages/PublicAnalysis';
+import Profile from '@/pages/Profile';
 
 // ── Auth guard ───────────────────────────────────────────────────────────────
 
@@ -87,6 +88,7 @@ export default function App() {
         <Route element={<RequireAuth />}>
           <Route element={<AppShell><Outlet /></AppShell>}>
             <Route path="/app" element={<Projects />} />
+            <Route path="/profile" element={<Profile />} />
 
             {/* Project sub-routes */}
             <Route path="/p/:id" element={<ProjectLoader />}>

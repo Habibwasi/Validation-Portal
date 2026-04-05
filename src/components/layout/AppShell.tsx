@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { NavLink, useParams, useNavigate, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, MessageSquare, ClipboardList, BarChart2,
-  ChevronLeft, ChevronDown, LogOut, FolderOpen, Settings, Sun, Moon
+  ChevronLeft, ChevronDown, LogOut, FolderOpen, Settings, Sun, Moon, UserCircle
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useProjectStore } from '@/store/projectStore';
@@ -198,6 +198,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
         {/* Footer */}
         <div className="px-3 pb-4 border-t border-[var(--border)] pt-3 space-y-1">
+          <NavItem to="/profile" icon={<UserCircle size={15} />} label="Profile" />
           <button
             onClick={toggleTheme}
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] text-[var(--text2)] hover:text-[var(--text)] hover:bg-[var(--surface2)] transition-all"
@@ -228,9 +229,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <MobileNavItem to={`/p/${id}/survey`} icon={<MessageSquare size={18} />} label="Survey" />
             <MobileNavItem to={`/p/${id}/interviews`} icon={<ClipboardList size={18} />} label="Interviews" />
             <MobileNavItem to={`/p/${id}/analysis`} icon={<BarChart2 size={18} />} label="Results" />
+            <MobileNavItem to="/profile" icon={<UserCircle size={18} />} label="Profile" />
           </>
         ) : (
-          <MobileNavItem to="/app" icon={<FolderOpen size={18} />} label="My Ideas" end />
+          <>
+            <MobileNavItem to="/app" icon={<FolderOpen size={18} />} label="My Ideas" end />
+            <MobileNavItem to="/profile" icon={<UserCircle size={18} />} label="Profile" />
+          </>
         )}
       </nav>
     </div>
