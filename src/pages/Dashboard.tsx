@@ -4,12 +4,10 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 
 import { MessageSquare, ClipboardList, BarChart2, TrendingUp, Target, Users } from 'lucide-react';
 import { useProjectStore } from '@/store/projectStore';
 import { OnboardingWizard } from '@/components/ui/OnboardingWizard';
-import { REGIONS } from '@/types';
 import { pct } from '@/lib/utils';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Card, CardTitle } from '@/components/ui/Card';
 import { StatProgress } from '@/components/ui/ProgressBar';
-import { Badge } from '@/components/ui/Badge';
 import { EmptyState, SkeletonCard } from '@/components/ui/EmptyState';
 import { Button } from '@/components/ui/Button';
 
@@ -17,7 +15,7 @@ export default function Dashboard() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
-  const { current, interviews, surveys, questions, loading, loadProject, refreshDeps, getDashboardStats } = useProjectStore();
+  const { current, questions, loading, loadProject, refreshDeps, getDashboardStats } = useProjectStore();
 
   const [showWizard, setShowWizard] = useState(false);
 
@@ -40,7 +38,6 @@ export default function Dashboard() {
   }, [location.state]);
 
   const stats = getDashboardStats();
-  const total = stats.totalInterviews + stats.totalSurveys;
 
   if (loading) {
     return (
@@ -52,31 +49,7 @@ export default function Dashboard() {
 
   if (!current) return null;
 
-  const recentActivity = [
-    ...interviews.slice(0, 5).map((i) => ({
-      type: 'interview' as const,
-      label: `Interview: ${i.participant}`,
-      sub: REGIONS.find((r) => r.code === i.region)?.label ?? i.region,
-      ts: i.interviewed_at,
-    })),
-    ...surveys.slice(0, 5).map((s) => ({
-      type: 'survey' as const,
-      label: 'Survey response',
-      sub: REGIONS.find((r) => r.code === s.region)?.label ?? (s.region ?? 'Unknown'),
-      ts: s.submitted_at,
-    })),
-  ].sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime()).slice(0, 8);
 
-  const regionData = Object.entries(stats.regionBreakdown)
-    .map(([code, count]) => ({
-      name: REGIONS.find((r) => r.code === code)?.label ?? code,
-      count,
-      flag: REGIONS.find((r) => r.code === code)?.flag ?? '🌐',
-    }))
-    .filter((r) => r.count > 0)
-    .sort((a, b) => b.count - a.count);
-
-  const sampleQuotes = interviews.flatMap((i) => i.quotes).filter(Boolean).slice(0, 6);
 
   return (
     <>
@@ -93,7 +66,7 @@ export default function Dashboard() {
         }
       />
 
-      {total === 0 && (
+      {(stats.totalInterviews + stats.totalSurveys) === 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
           {[
             {
@@ -239,75 +212,6 @@ export default function Dashboard() {
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
-          )}
-        </Card>
-
-        {/* Region breakdown */}
-        <Card>
-          <CardTitle>🌍 Where are they from?</CardTitle>
-          {regionData.length === 0 ? (
-            <EmptyState icon="🗺️" title="No region data yet" className="py-8" />
-          ) : (
-            <div className="flex flex-col gap-2.5">
-              {regionData.map((r) => (
-                <div key={r.name} className="grid items-center gap-3" style={{ gridTemplateColumns: '1.5rem 10rem 1fr 1.5rem' }}>
-                  <span className="text-base leading-none">{r.flag}</span>
-                  <span className="text-[12px] text-[var(--text2)] truncate">{r.name}</span>
-                  <div className="h-2 bg-[var(--border)] rounded-full overflow-hidden">
-                    <div
-                      className="h-full rounded-full"
-                      style={{
-                        width: `${pct(r.count, total)}%`,
-                        background: 'linear-gradient(90deg,var(--accent),var(--accent2))',
-                      }}
-                    />
-                  </div>
-                  <span className="text-[12px] font-semibold text-[var(--text)] text-right tabular-nums">{r.count}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </Card>
-      </div>
-
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-        {/* Recent activity */}
-        <Card>
-          <CardTitle>📋 What's been happening</CardTitle>
-          {recentActivity.length === 0 ? (
-            <EmptyState icon="📭" title="No activity yet" className="py-8" />
-          ) : (
-            <div className="flex flex-col gap-2">
-              {recentActivity.map((a, i) => (
-                <div key={i} className="flex items-center gap-3 py-1.5">
-                  <div className={`w-2 h-2 rounded-full flex-shrink-0 ${a.type === 'interview' ? 'bg-[var(--accent)]' : 'bg-[var(--green)]'}`} />
-                  <div className="flex-1 min-w-0">
-                    <span className="text-[12px] font-medium">{a.label}</span>
-                    <span className="text-[11px] text-[var(--text3)] ml-1.5">{a.sub}</span>
-                  </div>
-                  <Badge variant={a.type === 'interview' ? 'blue' : 'green'} className="flex-shrink-0 text-[10px]">
-                    {a.type}
-                  </Badge>
-                </div>
-              ))}
-            </div>
-          )}
-        </Card>
-
-        {/* Quote bank */}
-        <Card>
-          <CardTitle>💬 What they're actually saying</CardTitle>
-          {sampleQuotes.length === 0 ? (
-            <EmptyState icon="💭" title="No quotes yet" description="When you talk to people, write down exactly what they say. Their words are gold." className="py-8" />
-          ) : (
-            <div className="flex flex-col gap-3">
-              {sampleQuotes.map((q, i) => (
-                <div key={i} className="relative bg-[rgba(59,130,246,.04)] border border-[rgba(59,130,246,.12)] rounded-xl p-3 pl-5">
-                  <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-[var(--accent)] rounded-l-xl" />
-                  <p className="text-[12px] text-[var(--text2)] italic leading-relaxed">"{q}"</p>
-                </div>
-              ))}
-            </div>
           )}
         </Card>
       </div>
