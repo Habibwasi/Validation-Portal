@@ -302,10 +302,10 @@ ${localQs.map((q) => `{ "id": "${q.id}", "label": ${JSON.stringify(q.label)} }`)
       {current && (
         <Card className="mb-6 bg-[rgba(59,130,246,.04)] border-[rgba(59,130,246,.2)]">
           <CardTitle>🔗 Public Survey Link</CardTitle>
-          <div className="flex items-center gap-2">
-            <code className="flex-1 text-[12px] font-mono text-[var(--accent2)] bg-[var(--surface2)] rounded-lg px-3 py-2 border border-[var(--border)] truncate">
-              {surveyUrl}
-            </code>
+          <code className="block w-full text-[12px] font-mono text-[var(--accent2)] bg-[var(--surface2)] rounded-lg px-3 py-2 border border-[var(--border)] break-all mb-3">
+            {surveyUrl}
+          </code>
+          <div className="flex flex-wrap gap-2">
             <Button
               size="sm"
               variant="secondary"
