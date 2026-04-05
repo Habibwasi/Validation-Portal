@@ -18,7 +18,7 @@ import { supabase } from '@/lib/supabase';
 import { useProjectStore } from '@/store/projectStore';
 import type { Question, QuestionType, SurveyResponse } from '@/types';
 import { formatDate } from '@/lib/utils';
-import { REGIONS, SUPPORTED_LANGUAGES } from '@/types';
+import { SUPPORTED_LANGUAGES } from '@/types';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Card, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -525,7 +525,6 @@ function ResponseRow({ response: r, questions, onDelete }: {
   onDelete: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const region = REGIONS.find((reg) => reg.code === r.region);
 
   return (
     <div className="bg-[var(--surface)] border border-[rgba(255,255,255,.04)] rounded-xl px-4 py-3 group hover:border-[rgba(59,130,246,.2)] transition-all">
@@ -542,7 +541,6 @@ function ResponseRow({ response: r, questions, onDelete }: {
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <span className="font-medium text-[13px]">{formatDate(r.submitted_at)}</span>
-              {region && <span className="text-[12px] text-[var(--text2)]">{region.flag} {region.label}</span>}
               <span className="text-[11px] text-[var(--text3)]">{Object.keys(r.answers).length} answer{Object.keys(r.answers).length !== 1 ? 's' : ''}</span>
             </div>
           </div>

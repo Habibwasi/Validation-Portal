@@ -7,12 +7,11 @@ import { z } from 'zod';
 import { supabase } from '@/lib/supabase';
 import { useProjectStore } from '@/store/projectStore';
 import type { Interview, Hypothesis, HypothesisStatus } from '@/types';
-import { REGIONS } from '@/types';
 import { formatDate } from '@/lib/utils';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Modal, ConfirmModal } from '@/components/ui/Modal';
-import { Input, Textarea, Select } from '@/components/ui/Input';
+import { Input, Textarea } from '@/components/ui/Input';
 import { Badge } from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
 import { EmptyState, SkeletonRow } from '@/components/ui/EmptyState';
@@ -20,7 +19,6 @@ import toast from 'react-hot-toast';
 
 const interviewSchema = z.object({
   participant:    z.string().min(1, 'Participant name required'),
-  region:         z.string().min(1, 'Select a region'),
   interviewed_at: z.string().min(1, 'Date required'),
   pilot_ready:    z.boolean(),
   notes:          z.string().optional(),
@@ -93,7 +91,6 @@ export default function Interviews() {
       project_id: id,
       user_id: user!.id,
       participant: data.participant,
-      region: data.region,
       interviewed_at: data.interviewed_at,
       pilot_ready: data.pilot_ready,
       notes: data.notes ?? null,
@@ -408,7 +405,6 @@ function InterviewRow({ interview: i, onEdit, onDelete }: {
 }) {
   const { questions, hypotheses } = useProjectStore();
   const questionLabels = Object.fromEntries(questions.map((q) => [q.id, q.label]));
-  const region = REGIONS.find((r) => r.code === i.region);
   const scores = Object.values(i.pain_scores) as number[];
   const avgScore = scores.length ? (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1) : null;
   const [expanded, setExpanded] = useState(false);
@@ -424,9 +420,6 @@ function InterviewRow({ interview: i, onEdit, onDelete }: {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="font-semibold text-[13px]">{i.participant}</span>
-            {region && (
-              <span className="text-[12px] text-[var(--text2)]">{region.flag} {region.label}</span>
-            )}
             {i.pilot_ready && (
               <Badge variant="green" className="flex items-center gap-1">
                 <CheckCircle size={10} /> Would use it
@@ -557,7 +550,7 @@ function InterviewModal({ open, initial, painQuestions, hypotheses, onClose, onS
   const { register, handleSubmit, control, reset, watch, formState: { errors } } = useForm<IForm>({
     resolver: zodResolver(interviewSchema),
     defaultValues: {
-      participant: '', region: '', interviewed_at: new Date().toISOString().slice(0, 10),
+      participant: '', interviewed_at: new Date().toISOString().slice(0, 10),
       pilot_ready: false, notes: '', quotes: [], tags_raw: '', pain_scores: {}, hypothesis_ids: [],
     },
   });
@@ -572,7 +565,6 @@ function InterviewModal({ open, initial, painQuestions, hypotheses, onClose, onS
     if (initial) {
       reset({
         participant: initial.participant,
-        region: initial.region,
         interviewed_at: initial.interviewed_at.slice(0, 10),
         pilot_ready: initial.pilot_ready,
         notes: initial.notes ?? '',
@@ -583,7 +575,7 @@ function InterviewModal({ open, initial, painQuestions, hypotheses, onClose, onS
       });
     } else {
       reset({
-        participant: '', region: '', interviewed_at: new Date().toISOString().slice(0, 10),
+        participant: '', interviewed_at: new Date().toISOString().slice(0, 10),
         pilot_ready: false, notes: '', quotes: [], tags_raw: '', pain_scores: {}, hypothesis_ids: [],
       });
     }
@@ -634,19 +626,11 @@ function InterviewModal({ open, initial, painQuestions, hypotheses, onClose, onS
           )}
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3">
           <Input label="Who did you talk to?" placeholder="e.g. Ahmed D. (keep anonymous)" required
             hint="First name + initial is enough — no personal data needed"
             tooltip="A short anonymous identifier for this person. You'll see this name when reviewing interviews. No full names needed."
             error={errors.participant?.message} {...register('participant')} />
-          <Select
-            label="Region" required
-            tooltip="Where this person is based. Used in the regional breakdown chart and helps the AI identify geographic patterns."
-            placeholder="Select region"
-            options={REGIONS.map((r) => ({ value: r.code, label: `${r.flag} ${r.label}` }))}
-            error={errors.region?.message}
-            {...register('region')}
-          />
         </div>
 
         <div className="grid grid-cols-2 gap-3">

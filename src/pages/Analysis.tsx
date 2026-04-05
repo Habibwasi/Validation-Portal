@@ -162,7 +162,7 @@ export default function Analysis() {
           <div style="border:1px solid #e5e7eb;border-radius:8px;padding:16px;margin-bottom:12px;page-break-inside:avoid;">
             <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;flex-wrap:wrap;gap:4px;">
               <span style="font-weight:700;font-size:14px;color:#111;">${idx + 1}. ${esc(iv.participant || 'Anonymous')}</span>
-              <span style="font-size:11px;color:#999;">${date}${iv.region ? ' · ' + esc(iv.region) : ''}${iv.pilot_ready ? ' · <strong style="color:#16a34a;">Pilot ready</strong>' : ''}</span>
+              <span style="font-size:11px;color:#999;">${date}${iv.pilot_ready ? ' · <strong style="color:#16a34a;">Pilot ready</strong>' : ''}</span>
             </div>
             ${tagSpans ? `<div style="margin-bottom:8px;">${tagSpans}</div>` : ''}
             ${painRows ? `<table style="width:100%;border-collapse:collapse;margin-bottom:10px;"><thead><tr><th style="text-align:left;padding:5px 8px;font-size:11px;color:#888;font-weight:600;border-bottom:2px solid #e5e7eb;">Pain area</th><th style="text-align:center;padding:5px 8px;font-size:11px;color:#888;font-weight:600;border-bottom:2px solid #e5e7eb;">Score</th></tr></thead><tbody>${painRows}</tbody></table>` : ''}
@@ -190,7 +190,7 @@ export default function Analysis() {
           <div style="border:1px solid #e5e7eb;border-radius:8px;padding:14px;margin-bottom:10px;page-break-inside:avoid;">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
               <span style="font-weight:700;font-size:13px;color:#111;">Response #${idx + 1}</span>
-              <span style="font-size:11px;color:#999;">${date}${sr.region ? ' · ' + esc(sr.region) : ''}</span>
+              <span style="font-size:11px;color:#999;">${date}</span>
             </div>
             <table style="width:100%;border-collapse:collapse;"><tbody>${answerRows}</tbody></table>
           </div>`;

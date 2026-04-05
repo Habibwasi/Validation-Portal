@@ -10,11 +10,6 @@ function buildPrompt(
     .map((p) => `  - "${p.label}": avg ${p.avg.toFixed(1)}/10 (${p.count} data points)`)
     .join('\n');
 
-  const regionSummary = Object.entries(stats.regionBreakdown)
-    .filter(([, v]) => v > 0)
-    .map(([k, v]) => `  - ${k}: ${v}`)
-    .join('\n');
-
   const sampleQuotes = interviews
     .flatMap((i) => i.quotes)
     .filter(Boolean)
@@ -49,9 +44,6 @@ Pilot-ready leads: ${stats.pilotReadyCount}
 
 Pain point averages (1–10 severity):
 ${painSummary || '  (no pain data yet)'}
-
-Regional distribution:
-${regionSummary || '  (no region data yet)'}
 
 Most common tags: ${topTags || '(none)'}
 

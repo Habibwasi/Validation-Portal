@@ -41,7 +41,7 @@ export interface Interview {
   id: string;
   project_id: string;
   participant: string;
-  region: RegionCode;
+  region?: string | null;
   interviewed_at: string;
   pain_scores: Record<string, number>; // question_id → 1-10
   quotes: string[];
@@ -56,7 +56,6 @@ export interface SurveyResponse {
   id: string;
   project_id: string;
   answers: Record<string, unknown>; // question_id → answer
-  region: RegionCode | null;
   submitted_at: string;
 }
 
@@ -110,17 +109,6 @@ export interface HypothesisVerdict {
   evidence: string | null;
 }
 
-// ─── Region codes ──────────────────────────────────────────────────────────
-
-export type RegionCode =
-  | 'eu' | 'me' | 'na' | 'ap' | 'bd' | 'latam' | 'africa' | 'other';
-
-export interface Region {
-  code: RegionCode;
-  label: string;
-  flag: string;
-}
-
 export interface SupportedLanguage {
   code: string;
   label: string;
@@ -138,17 +126,6 @@ export const SUPPORTED_LANGUAGES: SupportedLanguage[] = [
   { code: 'de', label: 'German',  flag: '🇩🇪' },
 ];
 
-export const REGIONS: Region[] = [
-  { code: 'eu',     label: 'Europe',        flag: '🇪🇺' },
-  { code: 'me',     label: 'Middle East',   flag: '🌙' },
-  { code: 'na',     label: 'North America', flag: '🌎' },
-  { code: 'ap',     label: 'Asia Pacific',  flag: '🌏' },
-  { code: 'bd',     label: 'Bangladesh',    flag: '🇧🇩' },
-  { code: 'latam',  label: 'Latin America', flag: '🌎' },
-  { code: 'africa', label: 'Africa',        flag: '🌍' },
-  { code: 'other',  label: 'Other',         flag: '🌐' },
-];
-
 // ─── UI helpers ────────────────────────────────────────────────────────────
 
 export interface DashboardStats {
@@ -157,6 +134,5 @@ export interface DashboardStats {
   strongPainPct: number;
   conceptInterestPct: number;
   pilotReadyCount: number;
-  regionBreakdown: Record<RegionCode, number>;
   painAverages: { label: string; avg: number; count: number }[];
 }

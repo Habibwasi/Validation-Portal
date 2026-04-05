@@ -66,7 +66,6 @@ export default function PublicSurvey() {
     const { error } = await supabase.from('survey_responses').insert({
       project_id: project.id,
       answers,
-      region: null,
     });
 
     setSubmitting(false);

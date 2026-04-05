@@ -97,13 +97,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 
     const pilotReadyCount = interviews.filter((i) => i.pilot_ready).length;
 
-    // Region breakdown
-    const regionBreakdown: Record<string, number> = {};
-    [...interviews, ...surveys].forEach((item) => {
-      const r = (item as Interview).region ?? (item as SurveyResponse).region ?? 'other';
-      regionBreakdown[r] = (regionBreakdown[r] ?? 0) + 1;
-    });
-
     // Pain averages across all scale/rating questions
     const scaleQs = questions.filter((q) => q.type === 'scale' || q.type === 'rating');
     const painAverages = scaleQs.map((q) => {
@@ -119,7 +112,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       strongPainPct,
       conceptInterestPct,
       pilotReadyCount,
-      regionBreakdown: regionBreakdown as DashboardStats['regionBreakdown'],
       painAverages,
     };
   },
@@ -132,7 +124,6 @@ function emptyStats(): DashboardStats {
     strongPainPct: 0,
     conceptInterestPct: 0,
     pilotReadyCount: 0,
-    regionBreakdown: {} as DashboardStats['regionBreakdown'],
     painAverages: [],
   };
 }
