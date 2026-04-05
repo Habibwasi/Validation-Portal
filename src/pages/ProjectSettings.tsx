@@ -244,6 +244,12 @@ export default function ProjectSettings() {
         {activeTab === 'analytics' && (
         <Card accent="blue" className="p-5">
           <CardTitle>Metric Mapping</CardTitle>
+          <div className="flex items-start gap-3 bg-[rgba(245,158,11,.08)] border border-[rgba(245,158,11,.3)] rounded-xl px-4 py-3 mb-4">
+            <span className="text-amber-400 flex-shrink-0 mt-0.5">⚠️</span>
+            <p className="text-[12px] text-[var(--text2)] leading-relaxed">
+              This is what powers the <strong className="text-[var(--text)]">Feel the Pain %</strong> and <strong className="text-[var(--text)]">Want a Solution %</strong> stats on your dashboard. Without mapping questions here, those cards will always show 0%.
+            </p>
+          </div>
           <p className="text-[12px] text-[var(--text3)] mb-4">
             Tell the dashboard which survey questions to use for each validation signal.
           </p>

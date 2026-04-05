@@ -35,7 +35,7 @@ validate-portal/
 │   │   ├── ai.ts               # OpenAI wrapper — builds prompt, returns AnalysisResult JSON
 │   │   └── utils.ts            # cn(), slugify(), uniqueSlug(), formatDate(), pct(), avg()
 │   ├── store/
-│   │   └── projectStore.ts     # Zustand store — project + questions + interviews + surveys + stats
+│   │   └── projectStore.ts     # Zustand store — project + questions + interviews + surveys + hypotheses + stats
 │   ├── components/
 │   │   ├── ui/
 │   │   │   ├── Button.tsx      # Variants: primary / secondary / ghost / danger / outline
@@ -47,23 +47,24 @@ validate-portal/
 │   │   │   ├── EmptyState.tsx  # EmptyState + Skeleton + SkeletonCard
 │   │   └── OnboardingWizard.tsx # 3-step welcome modal shown after first project creation
 │   │   └── layout/
-│   │       ├── AppShell.tsx    # Fixed sidebar nav + project switcher dropdown
-│   │       └── PageHeader.tsx  # Consistent page header with title + actions slot
+│   │   ├── AppShell.tsx    # Fixed sidebar nav + mobile bottom nav + project switcher dropdown
+│       └── PageHeader.tsx  # Consistent page header with title + actions slot
 │   ├── pages/
 │   │   ├── Login.tsx           # Email/password login (Supabase auth)
 │   │   ├── Signup.tsx          # Email/password signup + confirmation redirect
 │   │   ├── Projects.tsx        # Project list — create / archive / delete
 │   │   ├── Dashboard.tsx       # Per-project analytics (charts, stats, quote bank)
 │   │   ├── SurveyBuilder.tsx   # Draft-mode question editor — changes require Save to persist
-│   │   ├── Interviews.tsx      # Interview logger — log / edit / delete / expand
-│   │   ├── Analysis.tsx        # AI analysis — generate / regenerate / display results
-│   │   ├── ProjectSettings.tsx # Metric mapping + survey copy + archive
+│   │   ├── Interviews.tsx      # Interview logger — log / edit / delete / expand + hypothesis tags
+│   │   ├── Hypotheses.tsx      # Hypothesis Board — structured assumptions + status + AI verdict
+│   │   ├── Analysis.tsx        # AI analysis — generate / regenerate / hypothesis assessment
+│   │   ├── ProjectSettings.tsx # Tabbed settings — General / Survey / Analytics / Languages / Danger
 │   │   └── PublicSurvey.tsx    # Unauthenticated /s/:slug survey form (step-by-step)
 │   ├── App.tsx                 # React Router setup + RequireAuth + ProjectLoader
 │   ├── main.tsx                # Root render + Toaster
 │   └── index.css               # Tailwind import + CSS variable dark theme
 ├── supabase/
-│   └── schema.sql              # 5 tables + indexes + RLS policies
+│   └── schema.sql              # 6 tables + indexes + RLS policies + hypothesis_ids migration
 ├── api/
 │   ├── analyse.ts              # Vercel serverless function — Groq AI analysis + question generation
 │   ├── notify-survey.ts        # Vercel serverless function — emails project owner on survey submit
@@ -88,6 +89,7 @@ validate-portal/
 | `/p/:id` | Dashboard | Protected |
 | `/p/:id/survey` | SurveyBuilder | Protected |
 | `/p/:id/interviews` | Interviews | Protected |
+| `/p/:id/hypotheses` | Hypotheses | Protected |
 | `/p/:id/analysis` | Analysis | Protected |
 | `/p/:id/settings` | ProjectSettings | Protected |
 
@@ -127,9 +129,20 @@ validate-portal/
 - Key quotes are verbatim and surfaced in the AI report as evidence
 - Tags are comma-separated; most frequent tags across all interviews appear in the AI prompt
 - Pilot-ready flag marks leads who would use/pay for the solution
+- **Hypothesis linking** — multi-select which hypotheses an interview tested; `H1 H2` chips shown on the interview row
 - Expand row to view quotes, notes, and individual pain scores (shows question labels, not IDs)
 - Edit and delete
 - **Project switcher** in sidebar — switch between projects without going back to the projects list; stays on the same page (e.g. stays on Interviews)
+
+### Hypothesis Board
+- Define structured pre-validation assumptions using a **Javelin-style template**: *I believe [customer] has [problem] and will pay [price] for [solution]*
+- Hypothesis sentence is rendered with each token colour-coded; optional notes field for context
+- **Status tracking** — Untested / Supported / Disproved / Pivoted; manually overridable inline per card
+- `H1`, `H2`... index badges — each hypothesis is referenced by number across the app
+- **Tested-in count** — each card shows how many interviews are linked to that hypothesis
+- Add / edit modal with **live sentence preview** as you type
+- **AI verdict integration** — when AI analysis runs, it assesses each hypothesis individually and returns a `hypothesis_verdicts` array with `supported / disproved / uncertain`, confidence level, reasoning, and evidence quote
+- **Apply Verdicts button** in Analysis — writes AI-determined statuses back to Supabase in one click (skips `uncertain`)
 
 ### Dashboard
 - Stat cards: total interviews, surveys, pain %, concept interest %, pilot-ready count
@@ -152,13 +165,17 @@ When a survey URL (`/s/:slug`) is pasted into WhatsApp, iMessage, Telegram, Link
 - Reads `analysis_cache` table for existing results
 - "Generate Insights" sends aggregated stats + sample quotes to a **Vercel serverless function** (`api/analyse.ts`) which calls **Groq llama-3.3-70b-versatile** server-side — the API key never reaches the browser
 - Displays: verdict badge, summary, themes with strength, key quotes, numbered next steps, warnings
+- **Hypothesis Assessment section** — if hypotheses exist, each is assessed individually with a verdict (supported/disproved/uncertain), confidence (high/medium/low), reasoning, and evidence quote
+- **Apply Verdicts** — one-click button writes AI-determined hypothesis statuses back to Supabase (uncertain = no change)
 - "Regenerate" clears cache and re-runs
 - **Shareable analysis link** — generates a public read-only URL to share results with stakeholders
 - **PDF export** — exports full analysis + interview and survey response data as a printable PDF
 
 ### Project Settings
+- **Tabbed layout** — General / Survey / Analytics / Languages / Danger Zone tabs keep the page uncluttered
 - Map which survey questions feed each validation metric (pain, concept interest, pilot ready)
 - Customise survey welcome and thank-you text
+- Customise the public survey URL slug
 - Enable survey translation languages
 - Archive project (data preserved)
 
@@ -168,16 +185,19 @@ When a survey URL (`/s/:slug`) is pasted into WhatsApp, iMessage, Telegram, Link
 
 ```
 projects          — id, user_id, name, slug, description, archived, target_*, settings (JSONB)
-questions         — id, project_id, type, label, options[], required, display_order
-interviews        — id, project_id, user_id, participant, region, pain_scores (JSONB), quotes[], tags[], notes, pilot_ready, interviewed_at
+questions         — id, project_id, type, label, options[], required, display_order, translations (JSONB)
+interviews        — id, project_id, user_id, participant, region, pain_scores (JSONB), quotes[], tags[], notes, pilot_ready, hypothesis_ids[], interviewed_at
 survey_responses  — id, project_id, answers (JSONB), region, submitted_at
 analysis_cache    — id, project_id, result (JSONB), created_at
+hypotheses        — id, project_id, customer, problem, price, solution, notes, status, display_order, created_at
 ```
 
 **RLS policies:**
-- `projects`, `questions`, `interviews`, `analysis_cache` — owner-only (via `auth.uid()`)
+- `projects`, `questions`, `interviews`, `analysis_cache`, `hypotheses` — owner-only (via `auth.uid()`)
 - `questions`, `projects` — anon can **read** non-archived (required for public survey)
 - `survey_responses` — anyone can **insert** (public survey), owner can select
+
+> **Migration note:** if you have an existing database, run the migration lines at the bottom of `schema.sql` to add the `hypotheses` table and `hypothesis_ids` column to `interviews`.
 
 ---
 

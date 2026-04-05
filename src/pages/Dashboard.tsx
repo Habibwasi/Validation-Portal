@@ -191,6 +191,24 @@ export default function Dashboard() {
         />
       </div>
 
+      {stats.totalSurveys > 0 && !(current.settings?.pain_question_ids?.length) && !current.settings?.concept_question_id && (
+        <div className="flex items-start gap-3 bg-[rgba(245,158,11,.08)] border border-[rgba(245,158,11,.3)] rounded-xl px-4 py-3 mb-6">
+          <span className="text-amber-400 text-base flex-shrink-0 mt-0.5">⚠️</span>
+          <div className="flex-1">
+            <p className="text-[13px] font-semibold text-amber-400 mb-0.5">Analytics not set up</p>
+            <p className="text-[12px] text-[var(--text2)]">
+              Your stats show 0% because no survey questions are mapped to metrics yet. Fix it in{' '}
+              <button
+                onClick={() => navigate(`/p/${id}/settings`)}
+                className="underline hover:text-amber-400 transition-colors"
+              >
+                Settings → Analytics
+              </button>.
+            </p>
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-6">
         {/* Pain chart */}
         <Card>

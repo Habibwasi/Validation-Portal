@@ -227,7 +227,7 @@ export default function Hypotheses() {
                   </div>
 
                   {/* Actions */}
-                  <div className="flex gap-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="flex gap-1 flex-shrink-0 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                     <Button size="sm" variant="ghost" onClick={() => { setEditTarget(h); setAddOpen(true); }}>
                       <Edit2 size={13} />
                     </Button>

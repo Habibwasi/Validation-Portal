@@ -323,10 +323,17 @@ ${localQs.map((q) => `{ "id": "${q.id}", "label": ${JSON.stringify(q.label)} }`)
         />
       ) : (
         <div className="mb-4 space-y-3">
+          {isDirty && (
+            <div className="flex items-start gap-3 bg-[rgba(245,158,11,.08)] border border-[rgba(245,158,11,.3)] rounded-xl px-4 py-3">
+              <span className="text-amber-400 flex-shrink-0 mt-0.5">⚠️</span>
+              <p className="text-[12px] text-amber-300 leading-relaxed">
+                You have unsaved changes — questions won't update on the live survey until you press <strong>Save</strong>.
+              </p>
+            </div>
+          )}
           <div className="flex items-center justify-between">
             <p className="text-[12px] text-[var(--text3)]">
               {localQs.length} question{localQs.length !== 1 ? 's' : ''} — drag to reorder
-              {isDirty && <span className="ml-2 text-amber-400">Unsaved changes</span>}
             </p>
           </div>
           {Object.keys(momResults).length > 0 && (
@@ -492,7 +499,7 @@ function ResponseRow({ response: r, questions, onDelete }: {
         </button>
         <Button
           size="sm" variant="ghost"
-          className="opacity-0 group-hover:opacity-100 transition-opacity hover:text-[var(--red)]"
+          className="hover:text-[var(--red)]"
           onClick={onDelete}
         >
           <Trash2 size={13} />
@@ -585,7 +592,7 @@ function SortableQuestion({
             )}
           </div>
         </div>
-        <div className="flex gap-1 flex-shrink-0 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+        <div className="flex gap-1 flex-shrink-0">
           <Button size="sm" variant="ghost" onClick={onEdit}>Edit</Button>
           <Button size="sm" variant="ghost" onClick={onDelete} className="hover:text-[var(--red)]">
             <Trash2 size={13} />
