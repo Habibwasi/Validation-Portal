@@ -17,13 +17,19 @@ export default function Dashboard() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
-  const { current, interviews, surveys, questions, loading, loadProject, getDashboardStats } = useProjectStore();
+  const { current, interviews, surveys, questions, loading, loadProject, refreshDeps, getDashboardStats } = useProjectStore();
 
   const [showWizard, setShowWizard] = useState(false);
 
   useEffect(() => {
-    if (id) loadProject(id);
-  }, [id, loadProject]);
+    if (!id) return;
+    if (!current || current.id !== id) {
+      loadProject(id);          // first load — shows skeleton
+    } else {
+      refreshDeps(id);          // already loaded — silent background refresh
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
 
   useEffect(() => {
     if (location.state?.onboarding) {
@@ -191,7 +197,7 @@ export default function Dashboard() {
         />
       </div>
 
-      {stats.totalSurveys > 0 && !(current.settings?.pain_question_ids?.length) && !current.settings?.concept_question_id && (
+      {stats.totalSurveys > 0 && stats.conceptInterestPct === 0 && !current.settings?.concept_question_id && (
         <div className="flex items-start gap-3 bg-[rgba(245,158,11,.08)] border border-[rgba(245,158,11,.3)] rounded-xl px-4 py-3 mb-6">
           <span className="text-amber-400 text-base flex-shrink-0 mt-0.5">⚠️</span>
           <div className="flex-1">
