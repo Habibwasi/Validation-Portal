@@ -198,13 +198,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
         {/* Footer */}
         <div className="px-3 pb-4 border-t border-[var(--border)] pt-3 space-y-1">
-          <button
-            onClick={() => navigate('/profile', id ? { state: { projectId: id } } : {})}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium text-[var(--text2)] hover:text-[var(--text)] hover:bg-[var(--surface2)] transition-all"
-          >
-            <UserCircle size={15} className="flex-shrink-0" />
-            Profile
-          </button>
+          {!id && (
+            <button
+              onClick={() => navigate('/profile')}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium text-[var(--text2)] hover:text-[var(--text)] hover:bg-[var(--surface2)] transition-all"
+            >
+              <UserCircle size={15} className="flex-shrink-0" />
+              Profile
+            </button>
+          )}
           <button
             onClick={toggleTheme}
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] text-[var(--text2)] hover:text-[var(--text)] hover:bg-[var(--surface2)] transition-all"
@@ -235,7 +237,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <MobileNavItem to={`/p/${id}/survey`} icon={<MessageSquare size={18} />} label="Survey" />
             <MobileNavItem to={`/p/${id}/interviews`} icon={<ClipboardList size={18} />} label="Interviews" />
             <MobileNavItem to={`/p/${id}/analysis`} icon={<BarChart2 size={18} />} label="Results" />
-            <MobileNavItem to="/profile" icon={<UserCircle size={18} />} label="Profile" />
           </>
         ) : (
           <>
