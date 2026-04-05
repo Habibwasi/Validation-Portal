@@ -202,6 +202,20 @@ export default function Hypotheses() {
                       </span>
                     </div>
 
+                    {/* Linked interviews */}
+                    {count > 0 && (() => {
+                      const linked = interviews.filter((iv) => (iv.hypothesis_ids ?? []).includes(h.id));
+                      return (
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          {linked.map((iv) => (
+                            <span key={iv.id} className="inline-flex items-center gap-1 text-[11px] bg-[var(--surface2)] border border-[var(--border)] rounded-lg px-2 py-0.5 text-[var(--text2)]">
+                              {iv.participant}
+                            </span>
+                          ))}
+                        </div>
+                      );
+                    })()}
+
                     {/* Status selector */}
                     <div className="mt-3 flex items-center gap-1.5 flex-wrap">
                       <span className="text-[11px] text-[var(--text3)]">Status:</span>
@@ -227,7 +241,7 @@ export default function Hypotheses() {
                   </div>
 
                   {/* Actions */}
-                  <div className="flex gap-1 flex-shrink-0 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                  <div className="flex gap-1 flex-shrink-0">
                     <Button size="sm" variant="ghost" onClick={() => { setEditTarget(h); setAddOpen(true); }}>
                       <Edit2 size={13} />
                     </Button>
