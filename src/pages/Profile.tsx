@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { User, Mail, KeyRound, LogOut, Trash2, Save } from 'lucide-react';
+import { User, Mail, KeyRound, LogOut, Trash2, Save, ArrowLeft } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { Card, CardTitle } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
@@ -33,6 +33,8 @@ type PasswordForm = z.infer<typeof passwordSchema>;
 
 export default function Profile() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const returnProjectId: string | undefined = (location.state as { projectId?: string } | null)?.projectId;
   const [email, setEmail]             = useState('');
   const [initials, setInitials]       = useState('');
   const [savingName, setSavingName]   = useState(false);
@@ -116,6 +118,15 @@ export default function Profile() {
 
   return (
     <div className="p-4 sm:p-8 max-w-xl">
+      {returnProjectId && (
+        <button
+          onClick={() => navigate(`/p/${returnProjectId}`)}
+          className="flex items-center gap-1.5 text-[12px] text-[var(--text3)] hover:text-[var(--accent2)] transition-colors mb-4"
+        >
+          <ArrowLeft size={13} />
+          Back to project
+        </button>
+      )}
       <PageHeader
         title="Profile"
         subtitle="Manage your account details and security settings."

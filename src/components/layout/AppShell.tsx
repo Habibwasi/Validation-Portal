@@ -198,7 +198,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
         {/* Footer */}
         <div className="px-3 pb-4 border-t border-[var(--border)] pt-3 space-y-1">
-          <NavItem to="/profile" icon={<UserCircle size={15} />} label="Profile" />
+          <button
+            onClick={() => navigate('/profile', id ? { state: { projectId: id } } : {})}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium text-[var(--text2)] hover:text-[var(--text)] hover:bg-[var(--surface2)] transition-all"
+          >
+            <UserCircle size={15} className="flex-shrink-0" />
+            Profile
+          </button>
           <button
             onClick={toggleTheme}
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] text-[var(--text2)] hover:text-[var(--text)] hover:bg-[var(--surface2)] transition-all"
