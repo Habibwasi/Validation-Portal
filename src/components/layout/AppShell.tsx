@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { NavLink, useParams, useNavigate, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, MessageSquare, ClipboardList, BarChart2,
-  ChevronLeft, ChevronDown, LogOut, FolderOpen, Settings, Sun, Moon, Lightbulb
+  ChevronLeft, ChevronDown, LogOut, FolderOpen, Settings, Sun, Moon
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useProjectStore } from '@/store/projectStore';
@@ -186,7 +186,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           {id ? (
             <>
               <NavItem to={`/p/${id}`} icon={<LayoutDashboard size={15} />} label="Dashboard" end />
-              <NavItem to={`/p/${id}/hypotheses`} icon={<Lightbulb size={15} />} label="Hypotheses" />
               <NavItem to={`/p/${id}/survey`} icon={<MessageSquare size={15} />} label="Survey Builder" />
               <NavItem to={`/p/${id}/interviews`} icon={<ClipboardList size={15} />} label="Conversations" />
               <NavItem to={`/p/${id}/analysis`} icon={<BarChart2 size={15} />} label="My Results" />
@@ -229,7 +228,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <MobileNavItem to={`/p/${id}/survey`} icon={<MessageSquare size={18} />} label="Survey" />
             <MobileNavItem to={`/p/${id}/interviews`} icon={<ClipboardList size={18} />} label="Interviews" />
             <MobileNavItem to={`/p/${id}/analysis`} icon={<BarChart2 size={18} />} label="Results" />
-            <MobileNavItem to={`/p/${id}/hypotheses`} icon={<Lightbulb size={18} />} label="Hypotheses" />
           </>
         ) : (
           <MobileNavItem to="/app" icon={<FolderOpen size={18} />} label="My Ideas" end />

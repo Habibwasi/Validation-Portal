@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { Plus, Trash2, Edit2, CheckCircle, XCircle, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, Trash2, Edit2, CheckCircle, XCircle, ChevronDown, ChevronUp, FlaskConical, Lightbulb } from 'lucide-react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { supabase } from '@/lib/supabase';
 import { useProjectStore } from '@/store/projectStore';
-import type { Interview } from '@/types';
+import type { Interview, Hypothesis, HypothesisStatus } from '@/types';
 import { REGIONS } from '@/types';
 import { formatDate } from '@/lib/utils';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/Button';
 import { Modal, ConfirmModal } from '@/components/ui/Modal';
 import { Input, Textarea, Select } from '@/components/ui/Input';
 import { Badge } from '@/components/ui/Badge';
+import { Card } from '@/components/ui/Card';
 import { EmptyState, SkeletonRow } from '@/components/ui/EmptyState';
 import toast from 'react-hot-toast';
 
@@ -30,15 +31,42 @@ const interviewSchema = z.object({
 });
 type IForm = z.infer<typeof interviewSchema>;
 
+const hSchema = z.object({
+  customer: z.string().min(2, 'Describe the customer'),
+  problem:  z.string().min(5, 'Describe the problem'),
+  price:    z.string().optional(),
+  solution: z.string().min(5, 'Describe the solution'),
+  notes:    z.string().optional(),
+});
+type HForm = z.infer<typeof hSchema>;
+
+const STATUS_META: Record<HypothesisStatus, { label: string; variant: 'neutral' | 'green' | 'red' | 'yellow'; dot: string }> = {
+  untested:  { label: 'Untested',  variant: 'neutral', dot: 'bg-[var(--text3)]' },
+  supported: { label: 'Supported', variant: 'green',   dot: 'bg-[var(--green)]' },
+  disproved: { label: 'Disproved', variant: 'red',     dot: 'bg-[var(--red)]' },
+  pivoted:   { label: 'Pivoted',   variant: 'yellow',  dot: 'bg-[var(--yellow)]' },
+};
+
 export default function Interviews() {
   const { id } = useParams<{ id: string }>();
-  const { questions, interviews, hypotheses, loading, refreshDeps } = useProjectStore();
+  const { questions, interviews, hypotheses, loading, refreshDeps, setHypotheses } = useProjectStore();
+  const [tab, setTab] = useState<'conversations' | 'hypotheses'>('conversations');
+
+  // ── Interview state ──────────────────────────────────────────────────────
   const [formOpen, setFormOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<Interview | null>(null);
   const [delTarget, setDelTarget] = useState<Interview | null>(null);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [sort, setSort] = useState<'date' | 'pain'>('date');
+
+  // ── Hypothesis state ─────────────────────────────────────────────────────
+  const [hAddOpen, setHAddOpen] = useState(false);
+  const [hEditTarget, setHEditTarget] = useState<Hypothesis | null>(null);
+  const [hDelTarget, setHDelTarget] = useState<Hypothesis | null>(null);
+  const [hSaving, setHSaving] = useState(false);
+  const [hDeleting, setHDeleting] = useState(false);
+  const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
 
   const painQuestions = questions.filter((q) => q.type === 'rating' || q.type === 'scale');
 
@@ -100,56 +128,254 @@ export default function Interviews() {
     toast.success('Removed');
   };
 
+  // ── Hypothesis handlers ──────────────────────────────────────────────────
+  const onHSave = async (data: HForm) => {
+    if (!id) return;
+    setHSaving(true);
+    try {
+      if (hEditTarget) {
+        const { error } = await supabase.from('hypotheses').update({
+          customer: data.customer, problem: data.problem,
+          price: data.price || null, solution: data.solution, notes: data.notes || null,
+        }).eq('id', hEditTarget.id);
+        if (error) throw error;
+        setHypotheses(hypotheses.map((h) =>
+          h.id === hEditTarget.id
+            ? { ...h, customer: data.customer, problem: data.problem, price: data.price || null, solution: data.solution, notes: data.notes || null }
+            : h
+        ));
+        toast.success('Hypothesis updated');
+      } else {
+        const maxOrder = hypotheses.reduce((m, h) => Math.max(m, h.display_order), -1);
+        const { data: created, error } = await supabase.from('hypotheses').insert({
+          project_id: id, customer: data.customer, problem: data.problem,
+          price: data.price || null, solution: data.solution, notes: data.notes || null,
+          status: 'untested', display_order: maxOrder + 1,
+        }).select().single();
+        if (error) throw error;
+        setHypotheses([...hypotheses, created]);
+        toast.success('Hypothesis added');
+      }
+    } catch { toast.error('Failed to save hypothesis'); }
+    finally { setHSaving(false); setHAddOpen(false); setHEditTarget(null); }
+  };
+
+  const onHDelete = async () => {
+    if (!hDelTarget) return;
+    setHDeleting(true);
+    await supabase.from('hypotheses').delete().eq('id', hDelTarget.id);
+    setHypotheses(hypotheses.filter((h) => h.id !== hDelTarget.id));
+    setHDeleting(false);
+    setHDelTarget(null);
+    toast.success('Hypothesis removed');
+  };
+
+  const onStatusChange = async (h: Hypothesis, newStatus: HypothesisStatus) => {
+    setUpdatingStatus(h.id);
+    const { error } = await supabase.from('hypotheses').update({ status: newStatus }).eq('id', h.id);
+    if (error) { toast.error('Failed to update status'); setUpdatingStatus(null); return; }
+    setHypotheses(hypotheses.map((x) => x.id === h.id ? { ...x, status: newStatus } : x));
+    setUpdatingStatus(null);
+  };
+
   return (
     <div className="p-4 sm:p-8">
       <PageHeader
-        title="Your Conversations"
-        subtitle={`${interviews.length} conversation${interviews.length !== 1 ? 's' : ''} logged so far`}
+        title="Conversations & Hypotheses"
+        subtitle="Log who you talked to and track the assumptions you're testing"
         actions={
-          <Button variant="primary" onClick={openAdd}>
-            <Plus size={15} /> Add a conversation
-          </Button>
+          tab === 'conversations'
+            ? <Button variant="primary" onClick={openAdd}><Plus size={15} /> Add a conversation</Button>
+            : <Button variant="primary" onClick={() => { setHEditTarget(null); setHAddOpen(true); }}><Plus size={15} /> Add hypothesis</Button>
         }
       />
 
-      {loading ? (
-        <div className="flex flex-col gap-2">
-          {[1, 2, 3].map((k) => <SkeletonRow key={k} />)}
-        </div>
-      ) : interviews.length === 0 ? (
-        <EmptyState
-          icon="🎙️"
-          title="You haven't talked to anyone yet"
-          description="That's step 1 — find 3 people who might have the problem you're solving and talk to them."
-          action={<Button variant="primary" onClick={openAdd}><Plus size={14} /> Log my first conversation</Button>}
-        />
-      ) : (
+      {/* Tabs */}
+      <div className="flex gap-1 bg-[var(--surface)] border border-[var(--border)] rounded-xl p-1 w-fit mb-6">
+        <button
+          onClick={() => setTab('conversations')}
+          className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-[12px] font-semibold transition-all ${
+            tab === 'conversations'
+              ? 'bg-gradient-to-r from-[var(--accent)] to-[var(--accent2)] text-white shadow-[0_4px_12px_rgba(245,158,11,.3)]'
+              : 'text-[var(--text2)] hover:text-[var(--text)]'
+          }`}
+        >
+          🎙️ Conversations <span className="opacity-70">({interviews.length})</span>
+        </button>
+        <button
+          onClick={() => setTab('hypotheses')}
+          className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-[12px] font-semibold transition-all ${
+            tab === 'hypotheses'
+              ? 'bg-gradient-to-r from-[var(--accent)] to-[var(--accent2)] text-white shadow-[0_4px_12px_rgba(245,158,11,.3)]'
+              : 'text-[var(--text2)] hover:text-[var(--text)]'
+          }`}
+        >
+          💡 Hypotheses <span className="opacity-70">({hypotheses.length})</span>
+        </button>
+      </div>
+
+      {/* ── Conversations Tab ───────────────────────────────────────────────── */}
+      {tab === 'conversations' && (
         <>
-          <div className="flex gap-1 bg-[var(--surface)] border border-[var(--border)] rounded-xl p-1 w-fit mb-4">
-            {([['date', 'Newest first'], ['pain', 'Highest pain']] as const).map(([val, label]) => (
-              <button
-                key={val}
-                onClick={() => setSort(val)}
-                className={`px-4 py-1.5 rounded-lg text-[12px] font-semibold transition-all ${
-                  sort === val
-                    ? 'bg-gradient-to-r from-[var(--accent)] to-[var(--accent2)] text-white shadow-[0_4px_12px_rgba(245,158,11,.3)]'
-                    : 'text-[var(--text2)] hover:text-[var(--text)]'
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-          <div className="flex flex-col gap-2">
-            {sorted.map((interview) => (
-              <InterviewRow
-                key={interview.id}
-                interview={interview}
-                onEdit={() => openEdit(interview)}
-                onDelete={() => setDelTarget(interview)}
-              />
-            ))}
-          </div>
+          {loading ? (
+            <div className="flex flex-col gap-2">
+              {[1, 2, 3].map((k) => <SkeletonRow key={k} />)}
+            </div>
+          ) : interviews.length === 0 ? (
+            <EmptyState
+              icon="🎙️"
+              title="You haven't talked to anyone yet"
+              description="That's step 1 — find 3 people who might have the problem you're solving and talk to them."
+              action={<Button variant="primary" onClick={openAdd}><Plus size={14} /> Log my first conversation</Button>}
+            />
+          ) : (
+            <>
+              <div className="flex gap-1 bg-[var(--surface)] border border-[var(--border)] rounded-xl p-1 w-fit mb-4">
+                {([['date', 'Newest first'], ['pain', 'Highest pain']] as const).map(([val, label]) => (
+                  <button
+                    key={val}
+                    onClick={() => setSort(val)}
+                    className={`px-4 py-1.5 rounded-lg text-[12px] font-semibold transition-all ${
+                      sort === val
+                        ? 'bg-gradient-to-r from-[var(--accent)] to-[var(--accent2)] text-white shadow-[0_4px_12px_rgba(245,158,11,.3)]'
+                        : 'text-[var(--text2)] hover:text-[var(--text)]'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <div className="flex flex-col gap-2">
+                {sorted.map((interview) => (
+                  <InterviewRow
+                    key={interview.id}
+                    interview={interview}
+                    onEdit={() => openEdit(interview)}
+                    onDelete={() => setDelTarget(interview)}
+                  />
+                ))}
+              </div>
+            </>
+          )}
+        </>
+      )}
+
+      {/* ── Hypotheses Tab ──────────────────────────────────────────────────── */}
+      {tab === 'hypotheses' && (
+        <>
+          <Card className="mb-6 bg-[rgba(245,158,11,.04)] border-[rgba(245,158,11,.2)]">
+            <div className="flex items-start gap-3">
+              <FlaskConical size={16} className="text-[var(--accent)] flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-[13px] font-semibold text-[var(--text)] mb-1">How it works</p>
+                <p className="text-[12px] text-[var(--text2)] leading-relaxed">
+                  Write your core assumptions as structured hypotheses. When you log conversations, tag which hypotheses you tested. When you run AI analysis, it will assess each hypothesis individually — telling you whether the evidence supports or disproves it.
+                </p>
+              </div>
+            </div>
+          </Card>
+
+          {hypotheses.length === 0 ? (
+            <EmptyState
+              icon={<Lightbulb size={32} />}
+              title="No hypotheses yet"
+              description="Start by writing down your most important assumption — what must be true for this idea to work?"
+              action={
+                <Button variant="primary" onClick={() => setHAddOpen(true)}>
+                  <Plus size={14} /> Add my first hypothesis
+                </Button>
+              }
+            />
+          ) : (
+            <div className="flex flex-col gap-3">
+              {hypotheses.map((h, i) => {
+                const sm = STATUS_META[h.status];
+                const count = interviews.filter((iv) => (iv.hypothesis_ids ?? []).includes(h.id)).length;
+                const linked = interviews.filter((iv) => (iv.hypothesis_ids ?? []).includes(h.id));
+                return (
+                  <Card key={h.id} className="p-5">
+                    <div className="flex items-start gap-3">
+                      <div className="w-7 h-7 rounded-full bg-[var(--surface2)] text-[11px] font-bold text-[var(--text3)] flex items-center justify-center flex-shrink-0 mt-0.5">
+                        H{i + 1}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[14px] leading-relaxed text-[var(--text)] mb-2">
+                          I believe{' '}
+                          <span className="font-bold text-[var(--accent)]">{h.customer}</span>{' '}
+                          has{' '}
+                          <span className="font-bold text-[var(--text)]">{h.problem}</span>
+                          {h.price && <>{' '}and will pay{' '}<span className="font-bold text-[var(--green)]">{h.price}</span></>}
+                          {' '}for{' '}
+                          <span className="font-bold text-[var(--accent2)]">{h.solution}</span>.
+                        </p>
+                        {h.notes && <p className="text-[12px] text-[var(--text3)] mb-2 italic">{h.notes}</p>}
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold">
+                            <span className={`w-1.5 h-1.5 rounded-full ${sm.dot}`} />
+                            <Badge variant={sm.variant} size="sm">{sm.label}</Badge>
+                          </span>
+                          <span className="text-[11px] text-[var(--text3)]">Tested in {count} conversation{count !== 1 ? 's' : ''}</span>
+                        </div>
+                        {linked.length > 0 && (
+                          <div className="mt-2 flex flex-wrap gap-1.5">
+                            {linked.map((iv) => (
+                              <span key={iv.id} className="inline-flex items-center text-[11px] bg-[var(--surface2)] border border-[var(--border)] rounded-lg px-2 py-0.5 text-[var(--text2)]">
+                                {iv.participant}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        <div className="mt-3 flex items-center gap-1.5 flex-wrap">
+                          <span className="text-[11px] text-[var(--text3)]">Status:</span>
+                          {(['untested', 'supported', 'disproved', 'pivoted'] as HypothesisStatus[]).map((s) => (
+                            <button
+                              key={s}
+                              type="button"
+                              disabled={updatingStatus === h.id}
+                              onClick={() => onStatusChange(h, s)}
+                              className={`px-2.5 py-1 rounded-lg border text-[11px] font-medium transition-all ${
+                                h.status === s
+                                  ? 'bg-[var(--surface2)] border-[var(--accent)] text-[var(--text)]'
+                                  : 'border-[var(--border)] text-[var(--text3)] hover:border-[var(--text3)]'
+                              }`}
+                            >
+                              {STATUS_META[s].label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="flex gap-1 flex-shrink-0">
+                        <Button size="sm" variant="ghost" onClick={() => { setHEditTarget(h); setHAddOpen(true); }}>
+                          <Edit2 size={13} />
+                        </Button>
+                        <Button size="sm" variant="ghost" className="hover:text-[var(--red)]" onClick={() => setHDelTarget(h)}>
+                          <Trash2 size={13} />
+                        </Button>
+                      </div>
+                    </div>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+
+          <HypothesisModal
+            open={hAddOpen || !!hEditTarget}
+            initial={hEditTarget}
+            onClose={() => { setHAddOpen(false); setHEditTarget(null); }}
+            onSave={onHSave}
+            saving={hSaving}
+            index={hEditTarget ? hypotheses.findIndex((h) => h.id === hEditTarget.id) : hypotheses.length}
+          />
+
+          <ConfirmModal
+            open={!!hDelTarget}
+            onClose={() => setHDelTarget(null)}
+            onConfirm={onHDelete}
+            title="Remove this hypothesis?"
+            message="This will permanently delete the hypothesis. Conversation links will remain but the hypothesis label will no longer appear."
+            loading={hDeleting}
+          />
         </>
       )}
 
@@ -276,6 +502,38 @@ function InterviewRow({ interview: i, onEdit, onDelete }: {
               </div>
             </div>
           )}
+          {(i.hypothesis_ids ?? []).length > 0 && (() => {
+            const linked = hypotheses.filter((h) => (i.hypothesis_ids ?? []).includes(h.id));
+            if (!linked.length) return null;
+            return (
+              <div className="md:col-span-2">
+                <div className="text-[10px] text-[var(--text3)] uppercase tracking-wider mb-2">Hypotheses tested</div>
+                <div className="flex flex-col gap-2">
+                  {linked.map((h) => {
+                    const hIdx = hypotheses.findIndex((x) => x.id === h.id);
+                    const sm = { untested: { label: 'Untested', color: 'text-[var(--text3)]' }, supported: { label: 'Supported', color: 'text-[var(--green)]' }, disproved: { label: 'Disproved', color: 'text-[var(--red)]' }, pivoted: { label: 'Pivoted', color: 'text-[var(--yellow)]' } }[h.status];
+                    return (
+                      <div key={h.id} className="bg-[var(--surface2)] rounded-xl px-3 py-2.5 flex items-start gap-2.5">
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[rgba(245,158,11,.12)] text-[var(--accent)] border border-[rgba(245,158,11,.2)] flex-shrink-0 mt-0.5">
+                          H{hIdx + 1}
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[12px] text-[var(--text)] leading-snug">
+                            <span className="font-semibold">{h.customer}</span>
+                            <span className="text-[var(--text3)]"> · </span>
+                            {h.problem}
+                            {h.price && <span className="text-[var(--green)]"> · {h.price}</span>}
+                          </p>
+                          <p className="text-[11px] text-[var(--text3)] mt-0.5 truncate">{h.solution}</p>
+                        </div>
+                        <span className={`text-[10px] font-semibold flex-shrink-0 mt-0.5 ${sm.color}`}>{sm.label}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()}
         </div>
       )}
     </div>
@@ -511,7 +769,7 @@ function InterviewModal({ open, initial, painQuestions, hypotheses, onClose, onS
           </div>
         ) : (
           <p className="text-[12px] text-[var(--text3)] italic">
-            You haven't added any hypotheses yet. Add them on the Hypotheses page to link them to conversations.
+            You haven't added any hypotheses yet. Switch to the Hypotheses tab to add your first assumption.
           </p>
         )}
 
@@ -524,4 +782,72 @@ function InterviewModal({ open, initial, painQuestions, hypotheses, onClose, onS
   );
 }
 
+// ── Hypothesis Modal ─────────────────────────────────────────────────────────
+
+interface HMProps {
+  open: boolean;
+  initial: Hypothesis | null;
+  onClose: () => void;
+  onSave: (data: HForm) => Promise<void>;
+  saving: boolean;
+  index: number;
+}
+
+function HypothesisModal({ open, initial, onClose, onSave, saving, index }: HMProps) {
+  const { register, handleSubmit, watch, reset, formState: { errors } } = useForm<HForm>({
+    resolver: zodResolver(hSchema),
+    defaultValues: { customer: '', problem: '', price: '', solution: '', notes: '' },
+  });
+
+  const customer = watch('customer');
+  const problem  = watch('problem');
+  const price    = watch('price');
+  const solution = watch('solution');
+
+  useEffect(() => {
+    if (initial) {
+      reset({ customer: initial.customer, problem: initial.problem, price: initial.price ?? '', solution: initial.solution, notes: initial.notes ?? '' });
+    } else {
+      reset({ customer: '', problem: '', price: '', solution: '', notes: '' });
+    }
+  }, [initial, open, reset]);
+
+  const handleSave = handleSubmit(onSave);
+  const preview = customer && problem && solution
+    ? `I believe ${customer} has ${problem}${price ? ` and will pay ${price}` : ''} for ${solution}.`
+    : null;
+
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title={initial ? `Edit H${index + 1}` : `Add hypothesis H${index + 1}`}
+      footer={
+        <>
+          <Button variant="ghost" onClick={onClose}>Cancel</Button>
+          <Button variant="primary" loading={saving} onClick={handleSave}>
+            {initial ? 'Save changes' : 'Add hypothesis'}
+          </Button>
+        </>
+      }
+    >
+      <form className="flex flex-col gap-4" onSubmit={handleSave}>
+        <p className="text-[12px] text-[var(--text3)]">
+          Fill in the template below. The hypothesis sentence is built automatically from your inputs.
+        </p>
+        {preview && (
+          <div className="bg-[rgba(245,158,11,.06)] border border-[rgba(245,158,11,.2)] rounded-xl px-4 py-3">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-[var(--accent)] mb-1">Preview</p>
+            <p className="text-[13px] text-[var(--text)] leading-relaxed italic">"{preview}"</p>
+          </div>
+        )}
+        <Input label="Customer" placeholder="e.g. parents living abroad" hint='Who has this problem? ("I believe ___")' required error={errors.customer?.message} {...register('customer')} />
+        <Input label="Problem" placeholder="e.g. no easy way to check on elderly family members" hint='What pain do they have? ("has ___")' required error={errors.problem?.message} {...register('problem')} />
+        <Input label="Price they'd pay" placeholder="e.g. £10–20/month" hint='Optional — omit if unknown ("and will pay ___")' {...register('price')} />
+        <Input label="Solution" placeholder="e.g. a daily wellness check-in app" hint='What will solve it? ("for ___")' required error={errors.solution?.message} {...register('solution')} />
+        <Textarea label="Notes" placeholder="Context, assumptions, or things that would change this hypothesis if proven wrong…" rows={2} {...register('notes')} />
+      </form>
+    </Modal>
+  );
+}
 
