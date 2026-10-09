@@ -11,6 +11,8 @@ A general-purpose startup validation research tool. Create projects, build publi
 | Framework | React 19 + Vite 8 + TypeScript 5.9 |
 | Styling | Tailwind CSS v4 (CSS-variables dark theme) |
 | Backend / DB | Supabase (PostgreSQL + Auth + RLS) |
+| Guest access | Supabase anonymous sign-in + pg_cron cleanup |
+| Bot protection | Cloudflare Turnstile (verified by Supabase Auth) |
 | State | Zustand |
 | Routing | React Router v7 |
 | Forms | React Hook Form + Zod |
@@ -32,7 +34,8 @@ validate-portal/
 │   │   └── index.ts            # All TypeScript interfaces (Project, Question, Interview, etc.)
 │   ├── lib/
 │   │   ├── supabase.ts         # Supabase client singleton
-│   │   ├── ai.ts               # OpenAI wrapper — builds prompt, returns AnalysisResult JSON
+│   │   ├── auth.ts             # useAuthUser() (isGuest), guest expiry, authHeaders() for /api calls
+│   │   ├── ai.ts               # Groq wrapper — builds prompt, returns AnalysisResult JSON
 │   │   └── utils.ts            # cn(), slugify(), uniqueSlug(), formatDate(), pct(), avg()
 │   ├── store/
 │   │   └── projectStore.ts     # Zustand store — project + questions + interviews + surveys + hypotheses + stats
@@ -45,13 +48,17 @@ validate-portal/
 │   │   │   ├── Input.tsx       # Input, Textarea, Select (all with label/error/hint/tooltip)
 │   │   │   ├── ProgressBar.tsx # ProgressBar + StatProgress
 │   │   │   ├── EmptyState.tsx  # EmptyState + Skeleton + SkeletonCard
+│   │   │   ├── Turnstile.tsx   # Cloudflare Turnstile CAPTCHA widget (no npm dependency)
+│   │   │   ├── GuestSignIn.tsx # "Continue as guest" button used on Login + Signup
 │   │   └── OnboardingWizard.tsx # 3-step welcome modal shown after first project creation
 │   │   └── layout/
 │   │   ├── AppShell.tsx    # Fixed sidebar nav + mobile bottom nav + project switcher dropdown
 │       └── PageHeader.tsx  # Consistent page header with title + actions slot
 │   ├── pages/
-│   │   ├── Login.tsx           # Email/password login (Supabase auth)
-│   │   ├── Signup.tsx          # Email/password signup + confirmation redirect
+│   │   ├── Landing.tsx         # Marketing page + "Try it as a guest" link
+│   │   ├── Login.tsx           # Email/password login + guest sign-in, behind Turnstile CAPTCHA
+│   │   ├── Signup.tsx          # Email/password signup + guest sign-in, behind Turnstile CAPTCHA
+│   │   ├── Profile.tsx         # Name, password, sign out, delete — and "Save your account" for guests
 │   │   ├── Projects.tsx        # Project list — create / archive / delete
 │   │   ├── Dashboard.tsx       # Per-project analytics (charts, stats, quote bank)
 │   │   ├── SurveyBuilder.tsx   # Draft-mode question editor — changes require Save to persist
@@ -64,9 +71,11 @@ validate-portal/
 │   ├── main.tsx                # Root render + Toaster
 │   └── index.css               # Tailwind import + CSS variable dark theme
 ├── supabase/
-│   └── schema.sql              # 6 tables + indexes + RLS policies + hypothesis_ids migration
+│   └── schema.sql              # 6 tables + indexes + RLS policies + migrations + guest cleanup cron job
 ├── api/
+│   ├── _auth.ts                # Shared requireUser() — verifies the Supabase session (not a route)
 │   ├── analyse.ts              # Vercel serverless function — Groq AI analysis + question generation
+│   ├── translate-survey.ts     # Vercel serverless function — Groq survey translation (owner only)
 │   ├── notify-survey.ts        # Vercel serverless function — emails project owner on survey submit
 │   └── survey-meta.ts          # Vercel serverless function — dynamic OG tags for crawlers
 ├── public/
@@ -82,10 +91,13 @@ validate-portal/
 
 | Route | Page | Auth |
 |---|---|---|
-| `/login` | Login | Public |
-| `/signup` | Signup | Public |
+| `/` | Landing | Public (redirects to `/app` if signed in) |
+| `/login` | Login (+ Continue as guest) | Public |
+| `/signup` | Signup (+ Continue as guest) | Public |
 | `/s/:slug` | PublicSurvey | Public (no login) |
-| `/` | Projects | Protected |
+| `/a/:slug` | PublicAnalysis | Public (no login) |
+| `/app` | Projects | Protected |
+| `/profile` | Profile | Protected |
 | `/p/:id` | Dashboard | Protected |
 | `/p/:id/survey` | SurveyBuilder | Protected |
 | `/p/:id/interviews` | Interviews | Protected |
@@ -93,9 +105,22 @@ validate-portal/
 | `/p/:id/analysis` | Analysis | Protected |
 | `/p/:id/settings` | ProjectSettings | Protected |
 
+"Protected" routes accept both registered users and guests.
+
 ---
 
 ## Features
+
+### Authentication & Guest Access
+- **Email/password** sign-up and sign-in via Supabase Auth
+- **Continue as guest** — try the full app with no sign-up, from the Login or Signup page (or "Try it as a guest" on the landing page)
+  - Guests are Supabase **anonymous users**: a real user id with no email, so every RLS policy works unchanged and guests only ever see their own data
+  - **Full access** — guests can create projects, build surveys, log interviews and use AI features
+  - A banner across the app shows when the guest account will be deleted
+  - Signing out as a guest asks for confirmation first (a guest session can't be signed back into)
+- **7-day guest expiry** — guest accounts and all their projects are deleted 7 days after creation by an hourly `pg_cron` job
+- **Save your account** (Profile page) — a guest adds an email, clicks the confirmation link, then sets a password. The user id stays the same, so all their projects carry over
+- **CAPTCHA protection** — every sign-in, sign-up and guest session is protected by Cloudflare Turnstile; the token is verified server-side by Supabase Auth
 
 ### Projects
 - Create projects with a name, description, interview target, and survey target
@@ -164,6 +189,7 @@ When a survey URL (`/s/:slug`) is pasted into WhatsApp, iMessage, Telegram, Link
 ### AI Analysis
 - Reads `analysis_cache` table for existing results
 - "Generate Insights" sends aggregated stats + sample quotes to a **Vercel serverless function** (`api/analyse.ts`) which calls **Groq llama-3.3-70b-versatile** server-side — the API key never reaches the browser
+- AI endpoints (`/api/analyse`, `/api/translate-survey`) require a valid Supabase session (registered user or guest), so anonymous internet traffic can't spend Groq credits; translation also checks project ownership
 - Displays: verdict badge, summary, themes with strength, key quotes, numbered next steps, warnings
 - **Hypothesis Assessment section** — if hypotheses exist, each is assessed individually with a verdict (supported/disproved/uncertain), confidence (high/medium/low), reasoning, and evidence quote
 - **Apply Verdicts** — one-click button writes AI-determined hypothesis statuses back to Supabase (uncertain = no change)
@@ -196,8 +222,11 @@ hypotheses        — id, project_id, customer, problem, price, solution, notes,
 - `projects`, `questions`, `interviews`, `analysis_cache`, `hypotheses` — owner-only (via `auth.uid()`)
 - `questions`, `projects` — anon can **read** non-archived (required for public survey)
 - `survey_responses` — anyone can **insert** (public survey), owner can select
+- Guests (anonymous users) are covered by the same policies — `auth.uid()` is their own user id
 
-> **Migration note:** if you have an existing database, run the migration lines at the bottom of `schema.sql` to add the `hypotheses` table and `hypothesis_ids` column to `interviews`.
+**Guest cleanup:** `delete_expired_guests()` runs hourly via `pg_cron` (job `delete-expired-guests`) and deletes `auth.users` rows where `is_anonymous` and older than 7 days; `on delete cascade` removes their projects and child rows. Keep the 7 in sync with `GUEST_RETENTION_DAYS` in `src/lib/auth.ts`.
+
+> **Migration note:** `schema.sql` is safe to re-run on an existing database — it adds the `hypotheses` table, the `hypothesis_ids` column, and the guest cleanup job. Enable the `pg_cron` extension first (**Database → Extensions**).
 
 ---
 
@@ -228,9 +257,10 @@ GROQ_API_KEY=gsk_...              # server-side only — do NOT use VITE_ prefix
 RESEND_API_KEY=re_...             # server-side only — for survey submission emails
 SUPABASE_SERVICE_ROLE_KEY=eyJ... # server-side only — to look up owner email on survey submit
 VITE_APP_URL=https://your-app.vercel.app  # optional — used for shareable survey links
-VITE_ENABLE_GUEST=true                    # optional — shows "Continue as guest"
-VITE_TURNSTILE_SITE_KEY=0x4AAAAAAFSAArW1hzd7xNuo  # Cloudflare Turnstile site key (public)
+VITE_ENABLE_GUEST=true                    # shows "Continue as guest"
+VITE_TURNSTILE_SITE_KEY=0x4AAAAAAFSAArW1hzd7xNuo  # optional — this key is the built-in default
 ```
+For local development, `.env.local` works too (it's gitignored). Restart `npm run dev` after changing env vars — Vite reads them at startup.
 
 ### 2. Run the database schema
 Open **Supabase Dashboard → SQL Editor**, paste `supabase/schema.sql`, and click **Run**.
@@ -259,6 +289,10 @@ npm run build
    - `RESEND_API_KEY` ← server-side only — for survey notification emails
    - `SUPABASE_SERVICE_ROLE_KEY` ← server-side only — to look up project owner email
    - `VITE_APP_URL` ← set this to your Vercel URL after first deploy, then redeploy
+   - `VITE_ENABLE_GUEST=true` ← shows "Continue as guest"
+   - `VITE_TURNSTILE_SITE_KEY` ← optional; defaults to the project's Turnstile site key
+
+   `VITE_*` variables are baked in at **build time** — redeploy after adding or changing them.
 4. SPA client-side routing is handled by `vercel.json` (already included)
 5. AI analysis + question generation is handled by `api/analyse.ts` — calls Groq server-side
 6. Survey submission notifications are handled by `api/notify-survey.ts` — uses Resend to email the project owner automatically
@@ -275,6 +309,16 @@ Alternatively, disable email confirmation under **Authentication → Providers �
 Users can click **Continue as guest** to use the full app without signing up. Guests are Supabase anonymous users, so RLS treats them like any other owner.
 
 1. **Supabase → Authentication → Sign In / Providers** → enable **Allow anonymous sign-ins**, and set `VITE_ENABLE_GUEST=true`.
-2. **CAPTCHA (Cloudflare Turnstile):** the widget's site key is `0x4AAAAAAFSAArW1hzd7xNuo` (`VITE_TURNSTILE_SITE_KEY`). Its hostname list in Cloudflare must include your Vercel domain and `localhost`. Put the widget's **secret key** only in **Supabase → Authentication → Attack Protection → Enable CAPTCHA protection → Turnstile** — Supabase Auth performs the server-side `siteverify` for every sign-in, sign-up and guest session, so the app has no siteverify endpoint of its own (and must not add one: tokens are single-use). Once enabled in Supabase, CAPTCHA is required for *all* of those calls.
+2. **CAPTCHA (Cloudflare Turnstile):** the widget's site key is `0x4AAAAAAFSAArW1hzd7xNuo` — built into the app as the default, so no env var is needed. Its hostname list in Cloudflare must include your Vercel domain and `localhost`. Put the widget's **secret key** only in **Supabase → Authentication → Attack Protection → Enable CAPTCHA protection → Turnstile** — never in `.env` or the repo. Supabase Auth performs the server-side `siteverify` for every sign-in, sign-up and guest session, so the app has no siteverify endpoint of its own (and must not add one: tokens are single-use).
 3. **Cleanup:** enable the `pg_cron` extension (**Database → Extensions**) before running `schema.sql`. The `delete-expired-guests` job deletes guest accounts (and their projects) 7 days after creation.
 4. **Saving a guest account:** guests add an email on the Profile page; the confirmation link returns to `/profile?upgrade=1`, where they set a password. Their data is kept because the user id doesn't change. Make sure `https://your-app.vercel.app/**` is in **Redirect URLs** (see above).
+
+#### Troubleshooting
+| Symptom | Fix |
+|---|---|
+| `captcha_failed: no captcha_token found` | The deployed build has no CAPTCHA widget — redeploy the latest `main`, then hard-refresh (Ctrl+Shift+R) |
+| `captcha_failed` mentioning an invalid/failed verification | The secret key in Supabase doesn't belong to widget `0x4AAAAAAFSAArW1hzd7xNuo` — re-copy it from Cloudflare |
+| Turnstile widget shows an error instead of the check | Add the current domain (and `localhost` for dev) to the widget's hostnames in Cloudflare |
+| "Anonymous sign-ins are disabled" | Enable **Allow anonymous sign-ins** in Supabase |
+| AI features return "Sign in to use AI features" | The frontend and `api/` functions are out of sync — redeploy both from the same commit |
+| Guest's confirmation link doesn't return to the app | Add `https://your-app.vercel.app/**` to Supabase **Redirect URLs** |
