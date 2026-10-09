@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { GUEST_ENABLED } from '@/lib/auth';
@@ -6,20 +6,30 @@ import { MessageSquare, ClipboardList, BarChart2, ArrowRight, CheckCircle, Play,
 
 // ── Demo video modal ──────────────────────────────────────────────────────────
 
+// An external video URL still takes precedence; otherwise the built-in
+// walkthrough replays the real product flow.
 const DEMO_VIDEO_URL = import.meta.env.VITE_DEMO_VIDEO_URL as string | undefined;
+const DemoReel = lazy(() => import('@/components/demo/DemoReel'));
 
 function VideoModal({ onClose }: { onClose: () => void }) {
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', h);
+    return () => document.removeEventListener('keydown', h);
+  }, [onClose]);
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-4xl aspect-video rounded-2xl overflow-hidden shadow-2xl"
+        className="relative w-full max-w-5xl rounded-2xl overflow-hidden shadow-2xl border border-[var(--border)]"
         onClick={(e) => e.stopPropagation()}
       >
         <button
           onClick={onClose}
+          aria-label="Close demo"
           className="absolute top-3 right-3 z-10 w-8 h-8 rounded-full bg-black/60 flex items-center justify-center text-white hover:bg-black/80 transition-colors"
         >
           <X size={14} />
@@ -27,14 +37,20 @@ function VideoModal({ onClose }: { onClose: () => void }) {
         {DEMO_VIDEO_URL ? (
           <iframe
             src={DEMO_VIDEO_URL}
-            className="w-full h-full"
+            className="w-full aspect-video"
             allow="autoplay; fullscreen"
             allowFullScreen
           />
         ) : (
-          <div className="w-full h-full bg-[#0e0c0a] flex items-center justify-center">
-            <p className="text-[var(--text3)] text-sm">Add your demo URL via <code className="text-[var(--accent)]">VITE_DEMO_VIDEO_URL</code> env variable.</p>
-          </div>
+          <Suspense
+            fallback={
+              <div className="w-full aspect-video bg-[var(--bg)] flex items-center justify-center">
+                <div className="w-8 h-8 border-2 border-[var(--accent)] border-t-transparent rounded-full animate-spin" />
+              </div>
+            }
+          >
+            <DemoReel />
+          </Suspense>
         )}
       </div>
     </div>
@@ -125,7 +141,7 @@ function ProductPreview({ onPlay }: { onPlay: () => void }) {
         </div>
       </button>
 
-      <p className="text-center text-[12px] text-[var(--text3)] mt-4">Watch the 30-second walkthrough</p>
+      <p className="text-center text-[12px] text-[var(--text3)] mt-4">Watch the 3-minute walkthrough</p>
     </div>
   );
 }
