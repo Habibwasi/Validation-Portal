@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
+import { requireUser } from './_auth.js';
 
 export const maxDuration = 60;
 
@@ -24,21 +25,32 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(503).json({ error: 'Groq API key not configured.' });
   }
 
+  const auth = await requireUser(req, res);
+  if (!auth) return;
+
+  // requireUser has already checked these are set.
   const supabaseUrl = process.env.VITE_SUPABASE_URL ?? process.env.SUPABASE_URL ?? '';
   const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY ?? process.env.SUPABASE_ANON_KEY ?? '';
-  if (!supabaseUrl || !supabaseAnonKey) {
-    return res.status(503).json({ error: 'Supabase not configured.' });
-  }
 
   // Forward user JWT so Supabase RLS applies
-  const jwt = (req.headers.authorization ?? '').replace(/^Bearer\s+/i, '');
   const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-    global: { headers: { Authorization: `Bearer ${jwt}` } },
+    global: { headers: { Authorization: `Bearer ${auth.jwt}` } },
   });
 
   const { projectId, languages } = req.body as { projectId?: string; languages?: string[] };
   if (!projectId || !Array.isArray(languages) || languages.length === 0) {
     return res.status(400).json({ error: 'Missing projectId or languages.' });
+  }
+
+  // Questions are publicly readable (for /s/:slug), so check ownership before spending AI credits.
+  const { data: project } = await supabase
+    .from('projects')
+    .select('id')
+    .eq('id', projectId)
+    .eq('user_id', auth.user.id)
+    .maybeSingle();
+  if (!project) {
+    return res.status(403).json({ error: 'You do not own this project.' });
   }
 
   const { data: questions, error } = await supabase

@@ -1,4 +1,5 @@
 import type { DashboardStats, AnalysisResult, Interview, Hypothesis } from '@/types';
+import { authHeaders } from '@/lib/auth';
 
 function buildPrompt(
   projectName: string,
@@ -96,7 +97,7 @@ export async function generateAnalysis(
 
   const res = await fetch('/api/analyse', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
     body: JSON.stringify({ prompt }),
   });
 

@@ -228,6 +228,8 @@ GROQ_API_KEY=gsk_...              # server-side only — do NOT use VITE_ prefix
 RESEND_API_KEY=re_...             # server-side only — for survey submission emails
 SUPABASE_SERVICE_ROLE_KEY=eyJ... # server-side only — to look up owner email on survey submit
 VITE_APP_URL=https://your-app.vercel.app  # optional — used for shareable survey links
+VITE_ENABLE_GUEST=true                    # optional — shows "Continue as guest"
+VITE_TURNSTILE_SITE_KEY=0x4AAAAAAFSAArW1hzd7xNuo  # Cloudflare Turnstile site key (public)
 ```
 
 ### 2. Run the database schema
@@ -268,3 +270,11 @@ If email confirmation is enabled, go to **Supabase Dashboard → Authentication 
 - Add `https://your-app.vercel.app/**` to **Redirect URLs**
 
 Alternatively, disable email confirmation under **Authentication → Providers → Email** for internal/private tools.
+
+### Guest access + CAPTCHA
+Users can click **Continue as guest** to use the full app without signing up. Guests are Supabase anonymous users, so RLS treats them like any other owner.
+
+1. **Supabase → Authentication → Sign In / Providers** → enable **Allow anonymous sign-ins**, and set `VITE_ENABLE_GUEST=true`.
+2. **CAPTCHA (Cloudflare Turnstile):** the widget's site key is `0x4AAAAAAFSAArW1hzd7xNuo` (`VITE_TURNSTILE_SITE_KEY`). Its hostname list in Cloudflare must include your Vercel domain and `localhost`. Put the widget's **secret key** only in **Supabase → Authentication → Attack Protection → Enable CAPTCHA protection → Turnstile** — Supabase Auth performs the server-side `siteverify` for every sign-in, sign-up and guest session, so the app has no siteverify endpoint of its own (and must not add one: tokens are single-use). Once enabled in Supabase, CAPTCHA is required for *all* of those calls.
+3. **Cleanup:** enable the `pg_cron` extension (**Database → Extensions**) before running `schema.sql`. The `delete-expired-guests` job deletes guest accounts (and their projects) 7 days after creation.
+4. **Saving a guest account:** guests add an email on the Profile page; the confirmation link returns to `/profile?upgrade=1`, where they set a password. Their data is kept because the user id doesn't change. Make sure `https://your-app.vercel.app/**` is in **Redirect URLs** (see above).

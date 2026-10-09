@@ -4,9 +4,12 @@ import {
   LayoutDashboard, MessageSquare, ClipboardList, BarChart2,
   ChevronLeft, ChevronDown, LogOut, FolderOpen, Settings, Sun, Moon, UserCircle
 } from 'lucide-react';
+import { format } from 'date-fns';
 import { supabase } from '@/lib/supabase';
+import { guestExpiresAt, useAuthUser } from '@/lib/auth';
 import { useProjectStore } from '@/store/projectStore';
 import { cn } from '@/lib/utils';
+import { ConfirmModal } from '@/components/ui/Modal';
 
 interface NavItemProps {
   to: string;
@@ -73,6 +76,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const [allProjects, setAllProjects] = useState<{ id: string; name: string }[]>([]);
   const { theme, toggle: toggleTheme } = useTheme();
+  const { user, isGuest } = useAuthUser();
+  const [confirmGuestSignOut, setConfirmGuestSignOut] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -91,13 +96,27 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   // Keep sub-path (e.g. '/interviews') so switching projects lands on the same page
   const subPath = id ? location.pathname.slice(`/p/${id}`.length) : '';
 
-  const handleSignOut = async () => {
+  const signOut = async () => {
     await supabase.auth.signOut();
     navigate('/login');
   };
 
+  // A guest who signs out can never get back into that account, so confirm first.
+  const handleSignOut = () => {
+    if (isGuest) setConfirmGuestSignOut(true);
+    else signOut();
+  };
+
   return (
     <div className="flex min-h-screen">
+      <ConfirmModal
+        open={confirmGuestSignOut}
+        onClose={() => setConfirmGuestSignOut(false)}
+        onConfirm={signOut}
+        title="Sign out of guest account?"
+        message="Guest accounts can't be signed back into. Your projects will be lost unless you save your account first (Profile → Save your account)."
+        confirmLabel="Sign out anyway"
+      />
       {/* ── Mobile top bar ─────────────────────────────────────────────────── */}
       <div className="md:hidden fixed top-0 left-0 right-0 z-40 bg-[var(--bg2)] border-b border-[var(--border)] safe-top">
       <div className="h-12 flex items-center px-4 gap-2">
@@ -226,6 +245,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       {/* ── Main content ────────────────────────────────────────────────────── */}
       <main className="flex-1 overflow-x-hidden mobile-main-padding">
+        {isGuest && user && (
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 sm:px-8 py-2 text-[12px] bg-[rgba(245,158,11,.08)] border-b border-[rgba(245,158,11,.2)] text-[var(--text2)]">
+            <span>
+              You're using a guest account. It will be deleted on{' '}
+              <span className="font-semibold text-[var(--text)]">{format(guestExpiresAt(user), 'MMM d')}</span>{' '}
+              unless you save it.
+            </span>
+            <button
+              onClick={() => navigate('/profile', { state: { projectId: id } })}
+              className="font-semibold text-[var(--accent)] hover:underline"
+            >
+              Save your account →
+            </button>
+          </div>
+        )}
         {children}
       </main>
 

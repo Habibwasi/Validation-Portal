@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
+import { GUEST_ENABLED } from '@/lib/auth';
 import { MessageSquare, ClipboardList, BarChart2, ArrowRight, CheckCircle, Play, X } from 'lucide-react';
 
 // ── Demo video modal ──────────────────────────────────────────────────────────
@@ -200,6 +201,13 @@ export default function Landing() {
             <Play size={15} className="text-[var(--accent)]" fill="currentColor" /> Watch demo
           </button>
         </div>
+        {GUEST_ENABLED && (
+          <p className="mt-4 text-[13px] text-[var(--text3)]">
+            Just looking?{' '}
+            <Link to="/login" className="text-[var(--accent)] hover:underline">Try it as a guest</Link>
+            {' '}— no sign-up needed.
+          </p>
+        )}
 
         {/* Product preview */}
         <ProductPreview onPlay={() => setVideoOpen(true)} />

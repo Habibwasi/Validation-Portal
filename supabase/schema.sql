@@ -86,6 +86,7 @@ begin
 end;
 $$;
 
+drop trigger if exists projects_updated_at on projects;
 create trigger projects_updated_at
   before update on projects
   for each row execute procedure handle_updated_at();
@@ -212,3 +213,29 @@ create policy "hypotheses: project owner all"
 
 -- Migration: add hypothesis_ids to interviews (safe to run on existing DB)
 alter table interviews add column if not exists hypothesis_ids text[] not null default '{}';
+
+-- ── Guest accounts (anonymous sign-in) ──────────────────────────────────────
+-- Guests are real auth.users rows with is_anonymous = true, so every RLS policy
+-- above (auth.uid()) already gives them full access to their own data only.
+-- Guests that haven't saved their account are deleted after 7 days; their
+-- projects and all child rows go with them via `on delete cascade`.
+-- Keep the 7 in sync with GUEST_RETENTION_DAYS in src/lib/auth.ts.
+-- Requires pg_cron: Supabase Dashboard → Database → Extensions → pg_cron.
+
+create extension if not exists pg_cron;
+
+create or replace function public.delete_expired_guests()
+returns void
+language sql
+security definer
+set search_path = ''
+as $$
+  delete from auth.users
+  where is_anonymous
+    and created_at < now() - interval '7 days';
+$$;
+
+revoke execute on function public.delete_expired_guests() from public, anon, authenticated;
+
+-- Runs hourly; re-running this file updates the existing job instead of duplicating it.
+select cron.schedule('delete-expired-guests', '0 * * * *', 'select public.delete_expired_guests()');

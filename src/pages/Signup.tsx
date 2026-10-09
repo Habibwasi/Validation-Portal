@@ -4,8 +4,11 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { supabase } from '@/lib/supabase';
+import { appBaseUrl } from '@/lib/auth';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
+import { Turnstile, CAPTCHA_ENABLED } from '@/components/ui/Turnstile';
+import { GuestSignIn } from '@/components/ui/GuestSignIn';
 import toast from 'react-hot-toast';
 
 const schema = z.object({
@@ -21,15 +24,22 @@ type FormData = z.infer<typeof schema>;
 export default function Signup() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [captchaKey, setCaptchaKey] = useState(0);
+  const resetCaptcha = () => { setCaptchaToken(null); setCaptchaKey((k) => k + 1); };
   const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
   });
 
   const onSubmit = async ({ email, password }: FormData) => {
     setLoading(true);
-    const redirectTo = `${(import.meta.env.VITE_APP_URL as string | undefined)?.replace(/\/$/, '') ?? window.location.origin}/login`;
-    const { error } = await supabase.auth.signUp({ email, password, options: { emailRedirectTo: redirectTo } });
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { emailRedirectTo: `${appBaseUrl()}/login`, captchaToken: captchaToken ?? undefined },
+    });
     setLoading(false);
+    resetCaptcha();
     if (error) { toast.error(error.message); return; }
     toast.success('Account created — check your email to confirm.');
     navigate('/login');
@@ -51,10 +61,19 @@ export default function Signup() {
               error={errors.password?.message} {...register('password')} />
             <Input label="Confirm password" type="password" placeholder="••••••••"
               error={errors.confirm?.message} {...register('confirm')} />
-            <Button variant="primary" size="lg" type="submit" loading={loading} className="w-full mt-1">
+            <Turnstile key={captchaKey} onToken={setCaptchaToken} />
+            <Button
+              variant="primary"
+              size="lg"
+              type="submit"
+              loading={loading}
+              disabled={CAPTCHA_ENABLED && !captchaToken}
+              className="w-full mt-1"
+            >
               Create account
             </Button>
           </form>
+          <GuestSignIn captchaToken={captchaToken} onAttempt={resetCaptcha} />
           <p className="text-center text-[12px] text-[var(--text3)] mt-4">
             Already have an account?{' '}
             <Link to="/login" className="text-[var(--accent)] hover:underline">Sign in</Link>

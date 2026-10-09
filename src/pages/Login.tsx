@@ -4,8 +4,11 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { supabase } from '@/lib/supabase';
+import { useAuthUser } from '@/lib/auth';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
+import { Turnstile, CAPTCHA_ENABLED } from '@/components/ui/Turnstile';
+import { GuestSignIn } from '@/components/ui/GuestSignIn';
 import toast from 'react-hot-toast';
 
 const schema = z.object({
@@ -16,15 +19,24 @@ type FormData = z.infer<typeof schema>;
 
 export default function Login() {
   const navigate = useNavigate();
+  const { isGuest } = useAuthUser();
   const [loading, setLoading] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [captchaKey, setCaptchaKey] = useState(0);
+  const resetCaptcha = () => { setCaptchaToken(null); setCaptchaKey((k) => k + 1); };
   const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
   });
 
   const onSubmit = async ({ email, password }: FormData) => {
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+      options: { captchaToken: captchaToken ?? undefined },
+    });
     setLoading(false);
+    resetCaptcha();
     if (error) { toast.error(error.message); return; }
     navigate('/app');
   };
@@ -38,6 +50,13 @@ export default function Login() {
         </div>
 
         <div className="bg-[var(--surface)] border border-[rgba(255,255,255,.05)] rounded-2xl p-6 shadow-[0_24px_60px_rgba(0,0,0,.4)]">
+          {isGuest && (
+            <p className="text-[12px] text-[var(--text2)] bg-[rgba(245,158,11,.08)] border border-[rgba(245,158,11,.2)] rounded-lg px-3 py-2 mb-4">
+              You're using a guest account. Signing in to another account leaves your guest work behind.{' '}
+              <Link to="/profile" className="text-[var(--accent)] hover:underline">Save it first</Link>.
+            </p>
+          )}
+
           <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
             <Input
               label="Email"
@@ -53,10 +72,20 @@ export default function Login() {
               error={errors.password?.message}
               {...register('password')}
             />
-            <Button variant="primary" size="lg" type="submit" loading={loading} className="w-full mt-1">
+            <Turnstile key={captchaKey} onToken={setCaptchaToken} />
+            <Button
+              variant="primary"
+              size="lg"
+              type="submit"
+              loading={loading}
+              disabled={CAPTCHA_ENABLED && !captchaToken}
+              className="w-full mt-1"
+            >
               Sign in
             </Button>
           </form>
+
+          <GuestSignIn captchaToken={captchaToken} onAttempt={resetCaptcha} />
 
           {import.meta.env.VITE_DISABLE_SIGNUP !== 'true' && (
             <p className="text-center text-[12px] text-[var(--text3)] mt-4">

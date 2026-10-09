@@ -15,6 +15,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { supabase } from '@/lib/supabase';
+import { authHeaders } from '@/lib/auth';
 import { useProjectStore } from '@/store/projectStore';
 import type { Question, QuestionType, SurveyResponse } from '@/types';
 import { formatDate } from '@/lib/utils';
@@ -117,7 +118,7 @@ export default function SurveyBuilder() {
     try {
       const res = await fetch('/api/analyse', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
         body: JSON.stringify({
           prompt: `You are a startup validation expert trained in The Mom Test by Rob Fitzpatrick. Generate 5 NEW survey questions to validate this product concept.
 
@@ -176,7 +177,7 @@ Focus on: confirming the problem exists, measuring pain severity, understanding 
     try {
       const res = await fetch('/api/analyse', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
         body: JSON.stringify({
           prompt: `You are an expert in The Mom Test by Rob Fitzpatrick — the gold standard for unbiased customer discovery.
 
