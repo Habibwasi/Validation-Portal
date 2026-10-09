@@ -1,9 +1,12 @@
 import { useEffect, useRef } from 'react';
 
-// Cloudflare Turnstile CAPTCHA. When VITE_TURNSTILE_SITE_KEY is unset the widget renders nothing,
-// so local dev works without CAPTCHA (keep Supabase's CAPTCHA protection off in that case).
+// Cloudflare Turnstile CAPTCHA. Supabase Auth has CAPTCHA protection on, so every sign-in/sign-up
+// must send a token — the site key is public, so default to it rather than silently dropping the
+// widget when the env var is missing from a build. Set VITE_TURNSTILE_SITE_KEY= (empty) to disable
+// it, e.g. against a Supabase project with CAPTCHA protection off.
 // Tokens are single-use: after every auth attempt, remount the widget (change its `key`) to get a fresh one.
-const SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY as string | undefined;
+const DEFAULT_SITE_KEY = '0x4AAAAAAFSAArW1hzd7xNuo';
+const SITE_KEY = (import.meta.env.VITE_TURNSTILE_SITE_KEY as string | undefined) ?? DEFAULT_SITE_KEY;
 const SCRIPT_SRC = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
 
 export const CAPTCHA_ENABLED = !!SITE_KEY;
