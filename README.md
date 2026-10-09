@@ -18,7 +18,7 @@ A general-purpose startup validation research tool. Create projects, build publi
 | Forms | React Hook Form + Zod |
 | Charts | Recharts |
 | Drag & Drop | @dnd-kit/core + sortable |
-| AI Analysis | Groq llama-3.3-70b-versatile (server-side) |
+| AI Analysis | Groq openai/gpt-oss-20b (server-side) |
 | Email | Resend API (survey submission notifications) |
 | Notifications | react-hot-toast |
 | Icons | lucide-react |
@@ -188,7 +188,7 @@ When a survey URL (`/s/:slug`) is pasted into WhatsApp, iMessage, Telegram, Link
 
 ### AI Analysis
 - Reads `analysis_cache` table for existing results
-- "Generate Insights" sends aggregated stats + sample quotes to a **Vercel serverless function** (`api/analyse.ts`) which calls **Groq llama-3.3-70b-versatile** server-side — the API key never reaches the browser
+- "Generate Insights" sends aggregated stats + sample quotes to a **Vercel serverless function** (`api/analyse.ts`) which calls **Groq openai/gpt-oss-20b** server-side — the API key never reaches the browser
 - AI endpoints (`/api/analyse`, `/api/translate-survey`) require a valid Supabase session (registered user or guest), so anonymous internet traffic can't spend Groq credits; translation also checks project ownership
 - Displays: verdict badge, summary, themes with strength, key quotes, numbered next steps, warnings
 - **Hypothesis Assessment section** — if hypotheses exist, each is assessed individually with a verdict (supported/disproved/uncertain), confidence (high/medium/low), reasoning, and evidence quote

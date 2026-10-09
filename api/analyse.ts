@@ -27,7 +27,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       Authorization: `Bearer ${key}`,
     },
     body: JSON.stringify({
-      model: 'llama-3.3-70b-versatile',
+      model: 'openai/gpt-oss-20b',
+      reasoning_effort: 'low',
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.3,
       response_format: { type: 'json_object' },
